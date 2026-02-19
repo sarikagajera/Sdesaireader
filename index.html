@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sdesaireader - OCR + Gujarati Speech</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .upload-area {
+      border: 3px dashed #3498db;
+      border-radius: 10px;
+      padding: 60px 20px;
+      margin: 20px 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .upload-area:hover {
+      background-color: #ecf0f1;
+    }
+    .upload-area.active {
+      background-color: #d5f4ff;
+      border-color: #2980b9;
+    }
+    .upload-area p {
+      font-size: 1.2rem;
+      color: #7f8c8d;
+    }
+    .file-name {
+      font-size: 1rem;
+      color: #2c3e50;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+    .controls {
+      margin: 20px 0;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      margin: 0 8px;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background-color: #ecf0f1;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .progress {
+      height: 100%;
+      background-color: #2ecc71;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .error {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .speech-controls {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .speed-slider {
+      width: 120px;
+      height: 6px;
+      background-color: #ddd;
+      border-radius: 3px;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✨ Sdesaireader - OCR + Gujarati Speech</h1>
+
+    <div id="uploadArea" class="upload-area">
+      <p>Drag & drop a PDF or image here<br><small>(Scanned documents supported!)</small></p>
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
+    </div>
+
+    <div class="file-name" id="fileName"></div>
+
+    <div class="controls">
+      <button id="processBtn" disabled>🔍 Extract Text (OCR)</button>
+      <button id="readBtn" disabled>🗣️ Read Aloud</button>
+    </div>
+
+    <div class="status" id="status">Ready to process.</div>
+    <div class="progress-bar"><div id="progress" class="progress"></div></div>
+
+    <div class="speech-controls">
+      <label for="speedSlider">Speed:</label>
+      <input type="range" id="speedSlider" min="0.5" max="2" step="0.1" value="1" class="speed-slider" />
+    </div>
+  </div>
+
+  <!-- Load Tesseract.js -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v2.0.0/dist/tesseract.min.js"></script>
+
+  <script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const processBtn = document.getElementById('processBtn');
+    const readBtn = document.getElementById('readBtn');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const speedSlider = document.getElementById('speedSlider');
+
+    // Open file picker when clicking upload area
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    // Handle file selection
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      fileName.textContent = file.name;
+      processBtn.disabled = false;
+      readBtn.disabled = true;
+      status.textContent = "File selected. Ready to extract text.";
+    });
+
+    // Drag and drop support
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('active');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('active');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('active');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        fileInput.files = e.dataTransfer.files;
+        fileName.textContent = file.name;
+        processBtn.disabled = false;
+        readBtn.disabled = true;
+        status.textContent = "File dropped. Ready to extract text.";
+      }
+    });
+
+    // Process PDF/Image using OCR
+    processBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      status.textContent = "Loading OCR engine... (first time only)";
+      progress.style.width = "20%";
+
+      try {
+        // Initialize Tesseract.js
+        const worker = await Tesseract.createWorker({
+          logger: m => {
+            if (m.progress && m.progress === 1) {
+              progress.style.width = "100%";
+            }
+          },
+        });
+
+        // Load Gujarati + English language models
+        await worker.loadLanguage('guj', 'eng');
+        await worker.initialize('guj+eng');
+
+        status.textContent = "Extracting text from document...";
+        progress.style.width = "60%";
+
+        // If it's a PDF, convert to image first
+        if (file.type === 'application/pdf') {
+          const pdf = await PDFDocument.load(await file.arrayBuffer());
+          const page = pdf.getPage(0);
+          const image = await page.render({ scale: 2 });
+          const imageData = image.imageData;
+          const blob = new Blob([imageData], { type: 'image/png' });
+          const imageUrl = URL.createObjectURL(blob);
+
+          await worker.recognize(imageUrl);
+          const result = await worker.getOutput();
+
+          await worker.terminate();
+          processResult(result);
+        } else {
+          // For images
+          const imageUrl = URL.createObjectURL(file);
+          await worker.recognize(imageUrl);
+          const result = await worker.getOutput();
+
+          await worker.terminate();
+          processResult(result);
+        }
+
+      } catch (err) {
+        status.textContent = "❌ Error during OCR: " + err.message;
+        console.error(err);
+      }
+    });
+
+    function processResult(result) {
+      const extractedText = result.text.trim();
+      if (!extractedText) {
+        status.textContent = "⚠️ No text found in the document.";
+        return;
+      }
+
+      // Detect language (simple heuristic)
+      const isGujarati = /[\u0A80-\u0AFF]/.test(extractedText); // Gujarati Unicode range
+      const detectedLang = isGujarati ? 'guj' : 'eng';
+
+      // Update status
+      status.textContent = `✅ Text extracted (${extractedText.length} characters). Language: ${detectedLang.toUpperCase()}`;
+      readBtn.disabled = false;
+
+      // Store text globally
+      window.sdesaireaderText = extractedText;
+      window.sdesaireaderLang = detectedLang;
+    }
+
+    // Read aloud
+    readBtn.addEventListener('click', () => {
+      const text = window.sdesaireaderText;
+      if (!text) {
+        status.textContent = "❌ No text to read. Please extract text first.";
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const lang = window.sdesaireaderLang;
+
+      // Try to find a Gujarati voice
+      const gujaratiVoice = voices.find(v => v.lang.startsWith('gu'));
+      if (gujaratiVoice && lang === 'guj') {
+        utterance.voice = gujaratiVoice;
+      } else {
+        // Fallback to English
+        const englishVoice = voices.find(v => v.lang.startsWith('en'));
+        if (englishVoice) utterance.voice = englishVoice;
+      }
+
+      utterance.rate = parseFloat(speedSlider.value);
+      utterance.onstart = () => {
+        status.textContent = "🔊 Reading aloud...";
+      };
+      utterance.onend = () => {
+        status.textContent = "✅ Finished reading.";
+      };
+
+      speechSynthesis.speak(utterance);
+    });
+
+    // Load voices on startup
+    window.speechSynthesis.onvoiceschanged = () => {
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        status.textContent += " Voices loaded.";
+      }
+    };
+
+    // Initial voice check
+    setTimeout(() => {
+      if (speechSynthesis.getVoices().length === 0) {
+        status.textContent += " (No voices available. Install Gujarati voice on device.)";
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
