@@ -3,215 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sdesaireader - OCR + Gujarati Speech</title>
+  <title>Sdesaireader - Final Fix</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background:#f4f6f9; margin:0; padding:20px; color:#333; text-align:center; }
-    h1 { font-size:1.8rem; margin-bottom:10px; color:#2c3e50; }
-    .container { max-width:900px; margin:0 auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.08); }
-    .upload-area { border:3px dashed #3498db; border-radius:10px; padding:60px 20px; margin:20px 0; cursor:pointer; transition:.3s; }
-    .upload-area:hover { background:#ecf0f1; }
-    .upload-area.active { background:#d5f4ff; border-color:#2980b9; }
-    .upload-area p { font-size:1.15rem; color:#7f8c8d; }
-    .file-name { font-size:1rem; color:#2c3e50; margin-top:10px; word-break:break-all; }
-    .controls { margin:20px 0; }
-    button { background:#3498db; color:#fff; border:none; padding:12px 24px; margin:0 8px; font-size:1rem; border-radius:6px; cursor:pointer; transition:.2s; }
-    button:hover { background:#2980b9; }
-    button:disabled { background:#c7c7c7; cursor:not-allowed; }
-    .status { margin-top:15px; font-size:.95rem; color:#34495e; }
-    .status .err { color:#e74c3c; font-weight:600; }
-    .progress-bar { width:100%; height:6px; background:#ecf0f1; border-radius:3px; margin-top:10px; overflow:hidden; }
-    .progress { height:100%; background:#2ecc71; width:0%; transition:width .2s; }
-    .speech-controls { margin-top:20px; display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; }
-    .speed-slider { width:130px; }
-    .output { text-align:left; margin:20px auto 0; max-width:900px; background:#fafafa; border:1px solid #eee; border-radius:8px; padding:12px 14px; height:180px; overflow:auto; white-space:pre-wrap; }
-    small.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color:#7f8c8d; }
+    body { font-family: 'Segoe UI', sans-serif; background:#f4f6f9; margin:0; padding:20px; text-align:center; }
+    .container { max-width:600px; margin:0 auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.1); }
+    .upload-area { border:3px dashed #3498db; padding:40px; margin:20px 0; cursor:pointer; border-radius:10px; }
+    button { background:#3498db; color:#fff; border:none; padding:12px 20px; margin:5px; border-radius:6px; font-weight:bold; cursor:pointer; }
+    button:disabled { background:#ccc; }
+    #output { text-align:left; background:#f9f9f9; padding:15px; border-radius:8px; height:150px; overflow-y:auto; margin-top:20px; white-space:pre-wrap; border:1px solid #ddd; }
+    select, input { margin:10px; padding:8px; border-radius:5px; border:1px solid #ddd; }
+    .status { color: #555; font-size: 0.9rem; margin: 10px 0; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>✨ Sdesaireader - OCR + Gujarati Speech</h1>
-
-    <div id="uploadArea" class="upload-area">
-      <p>Drag & drop a PDF or image here<br><small>(Scanned documents supported!)</small></p>
+    <h2>✨ Sdesaireader Upgraded</h2>
+    
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+      <p id="uploadText">Tap to Upload Scanned PDF or Image</p>
       <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
     </div>
 
-    <div class="file-name" id="fileName"></div>
-
-    <div class="controls">
-      <button id="processBtn" disabled>🔍 Extract Text (OCR)</button>
-      <button id="readBtn" disabled>🗣️ Read Aloud</button>
+    <div class="status" id="status">Status: Ready</div>
+    
+    <button id="processBtn" disabled>🔍 1. Extract Text</button>
+    <hr>
+    
+    <div>
+      <label>Voice:</label><br>
+      <select id="voiceSelect"><option>Loading voices...</option></select>
     </div>
 
-    <div class="status" id="status">Ready to process. <small class="mono">(first run downloads OCR models)</small></div>
-    <div class="progress-bar"><div id="progress" class="progress"></div></div>
-
-    <div class="speech-controls">
-      <label for="speedSlider">Speed:</label>
-      <input type="range" id="speedSlider" min="0.5" max="2" step="0.1" value="1" class="speed-slider" />
+    <div>
+      <label>Speed:</label>
+      <input type="range" id="speedSlider" min="0.5" max="1.5" step="0.1" value="1">
     </div>
 
-    <div id="output" class="output" placeholder="Extracted text will appear here…"></div>
+    <button id="readBtn" disabled>🗣️ 2. Read Aloud</button>
+    <button id="stopBtn">⏹️ Stop</button>
+
+    <div id="output">Extracted text will appear here...</div>
   </div>
 
-  <!-- Tesseract.js (OCR) -->
   <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
-  <!-- PDF.js (to render PDFs to images) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
-    // Configure PDF.js worker
-    if (window['pdfjsLib']) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-
-    const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
-    const fileName = document.getElementById('fileName');
     const processBtn = document.getElementById('processBtn');
     const readBtn = document.getElementById('readBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const status = document.getElementById('status');
-    const progress = document.getElementById('progress');
-    const speedSlider = document.getElementById('speedSlider');
     const output = document.getElementById('output');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const speedSlider = document.getElementById('speedSlider');
 
-    let extractedText = '';
-    let detectedLang = 'eng';
+    let extractedText = "";
 
-    // Open picker
-    uploadArea.addEventListener('click', () => fileInput.click());
-
-    // Drag & drop
-    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('active'); });
-    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('active'));
-    uploadArea.addEventListener('drop', e => {
-      e.preventDefault();
-      uploadArea.classList.remove('active');
-      const file = e.dataTransfer.files[0];
-      if (file) setFile(file);
-    });
-
-    // File chosen
-    fileInput.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (file) setFile(file);
-    });
-
-    function setFile(file) {
-      fileName.textContent = file.name;
-      processBtn.disabled = false;
-      readBtn.disabled = true;
-      extractedText = '';
-      output.textContent = '';
-      status.textContent = 'File selected. Ready to extract text.';
-    }
-
-    // Process
-    processBtn.addEventListener('click', async () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-
-      try {
-        status.textContent = 'Preparing OCR...';
-        progress.style.width = '10%';
-
-        const ocrImage = await fileToImageURL(file);
-        await runOCR(ocrImage);
-
-      } catch (e) {
-        const msg = (e && (e.message || e.reason || e.status)) ? (e.message || e.reason || e.status) : JSON.stringify(e);
-        status.innerHTML = '❌ <span class="err">Error during OCR:</span> ' + msg;
-        console.error('OCR error:', e);
-      }
-    });
-
-    async function fileToImageURL(file) {
-      if (file.type === 'application/pdf') {
-        if (!window['pdfjsLib']) throw new Error('PDF renderer not loaded.');
-        // Render first page of PDF to image
-        const buf = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        return canvas.toDataURL('image/png');
-      } else {
-        // Image file
-        return URL.createObjectURL(file);
-      }
-    }
-
-    async function runOCR(imageURL) {
-      progress.style.width = '20%';
-      status.textContent = 'Loading OCR engine and Gujarati model (first run may take 10–20s)...';
-
-      const worker = await Tesseract.createWorker({
-        logger: m => {
-          if (m && m.progress != null) {
-            progress.style.width = Math.max(25, Math.round(m.progress * 100)) + '%';
-          }
-        },
-        // Path that contains guj.traineddata (and many others)
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+    // 1. Load Voices properly for Mobile
+    function loadVoices() {
+      const voices = speechSynthesis.getVoices();
+      voiceSelect.innerHTML = '';
+      voices.forEach((voice, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        if (voice.lang.includes('gu')) option.selected = true; // Auto-select Gujarati
+        voiceSelect.appendChild(option);
       });
-
-      await worker.load();                       // Load core
-      await worker.loadLanguage('eng+guj');      // Load languages
-      await worker.initialize('eng+guj');        // Init
-
-      status.textContent = 'Recognizing text...';
-      const { data: { text } } = await worker.recognize(imageURL);
-      await worker.terminate();
-
-      processText(text || '');
-    }
-
-    function processText(text) {
-      extractedText = (text || '').trim();
-      output.textContent = extractedText;
-
-      if (!extractedText) {
-        status.textContent = '⚠️ No text found. Try a sharper image or higher contrast.';
-        readBtn.disabled = true;
-        return;
+      if (voices.length === 0) {
+        voiceSelect.innerHTML = '<option>No voices found. Check device settings.</option>';
       }
-
-      // Detect Gujarati characters
-      const isGujarati = /[\u0A80-\u0AFF]/.test(extractedText);
-      detectedLang = isGujarati ? 'gu' : 'en';
-
-      status.textContent = `✅ Text extracted (${extractedText.length} chars). Detected: ${isGujarati ? 'Gujarati' : 'English'}.`;
-      readBtn.disabled = false;
     }
+    speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
 
-    // Read aloud
-    readBtn.addEventListener('click', () => {
-      if (!extractedText) { status.textContent = '❌ No text to read. Run OCR first.'; return; }
+    // 2. Handle File Selection
+    fileInput.onchange = () => {
+      if(fileInput.files[0]) {
+        status.textContent = "Status: File selected. Click Extract.";
+        processBtn.disabled = false;
+        document.getElementById('uploadText').textContent = fileInput.files[0].name;
+      }
+    };
+
+    // 3. OCR Extraction
+    processBtn.onclick = async () => {
+      status.textContent = "Status: Extracting text (Please wait...)";
+      processBtn.disabled = true;
+      const file = fileInput.files[0];
+      const worker = await Tesseract.createWorker();
+      await worker.load();
+      await worker.loadLanguage('guj+eng');
+      await worker.initialize('guj+eng');
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+      
+      extractedText = text;
+      output.textContent = text;
+      status.textContent = "Status: Extraction Complete!";
+      readBtn.disabled = false;
+    };
+
+    // 4. Speech Function (The Fix)
+    readBtn.onclick = () => {
+      // Cancel any existing speech first
+      speechSynthesis.cancel();
 
       const utter = new SpeechSynthesisUtterance(extractedText);
       const voices = speechSynthesis.getVoices();
+      
+      // Use selected voice from dropdown
+      if (voices[voiceSelect.value]) {
+        utter.voice = voices[voiceSelect.value];
+      }
+      
+      utter.rate = speedSlider.value;
+      
+      utter.onstart = () => status.textContent = "Status: Speaking...";
+      utter.onend = () => status.textContent = "Status: Finished.";
+      utter.onerror = (e) => status.textContent = "Status: Speech Error: " + e.error;
 
-      // Prefer Gujarati if detected and available
-      const guVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('gu'));
-      const enVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en'));
-
-      if (detectedLang === 'gu' && guVoice) utter.voice = guVoice;
-      else if (enVoice) utter.voice = enVoice;
-
-      utter.rate = parseFloat(speedSlider.value);
-      utter.onstart = () => status.textContent = '🔊 Reading aloud...';
-      utter.onend = () => status.textContent = '✅ Finished reading.';
-      speechSynthesis.cancel(); // stop any previous
+      // On some mobile browsers, we need to resume audio context
       speechSynthesis.speak(utter);
-    });
+      
+      // Fix for Chrome/Safari getting stuck
+      const amIStillSpeaking = setInterval(() => {
+        if (!speechSynthesis.speaking) {
+          clearInterval(amIStillSpeaking);
+        } else {
+          speechSynthesis.resume();
+        }
+      }, 5000);
+    };
 
-    // Voice availability notice
-    window.speechSynthesis.onvoiceschanged = () => {
-      const v = speechSynthesis.getVoices();
-      if (!v || v.length === 0) status.textContent += ' (No speech voices available on this device)';
+    stopBtn.onclick = () => {
+      speechSynthesis.cancel();
+      status.textContent = "Status: Stopped.";
     };
   </script>
 </body>
