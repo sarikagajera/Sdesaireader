@@ -5,111 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Sdesaireader - OCR + Gujarati Speech</title>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f4f6f9;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-      text-align: center;
-    }
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 10px;
-      color: #2c3e50;
-    }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .upload-area {
-      border: 3px dashed #3498db;
-      border-radius: 10px;
-      padding: 60px 20px;
-      margin: 20px 0;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    .upload-area:hover {
-      background-color: #ecf0f1;
-    }
-    .upload-area.active {
-      background-color: #d5f4ff;
-      border-color: #2980b9;
-    }
-    .upload-area p {
-      font-size: 1.2rem;
-      color: #7f8c8d;
-    }
-    .file-name {
-      font-size: 1rem;
-      color: #2c3e50;
-      margin-top: 10px;
-      word-break: break-all;
-    }
-    .controls {
-      margin: 20px 0;
-    }
-    button {
-      background-color: #3498db;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      margin: 0 8px;
-      font-size: 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-    .status {
-      margin-top: 15px;
-      font-size: 0.9rem;
-      color: #7f8c8d;
-    }
-    .progress-bar {
-      width: 100%;
-      height: 6px;
-      background-color: #ecf0f1;
-      border-radius: 3px;
-      margin-top: 10px;
-      overflow: hidden;
-    }
-    .progress {
-      height: 100%;
-      background-color: #2ecc71;
-      width: 0%;
-      transition: width 0.3s;
-    }
-    .error {
-      color: #e74c3c;
-      font-weight: bold;
-    }
-    .speech-controls {
-      margin-top: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .speed-slider {
-      width: 120px;
-      height: 6px;
-      background-color: #ddd;
-      border-radius: 3px;
-      outline: none;
-    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background:#f4f6f9; margin:0; padding:20px; color:#333; text-align:center; }
+    h1 { font-size:1.8rem; margin-bottom:10px; color:#2c3e50; }
+    .container { max-width:900px; margin:0 auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.08); }
+    .upload-area { border:3px dashed #3498db; border-radius:10px; padding:60px 20px; margin:20px 0; cursor:pointer; transition:.3s; }
+    .upload-area:hover { background:#ecf0f1; }
+    .upload-area.active { background:#d5f4ff; border-color:#2980b9; }
+    .upload-area p { font-size:1.15rem; color:#7f8c8d; }
+    .file-name { font-size:1rem; color:#2c3e50; margin-top:10px; word-break:break-all; }
+    .controls { margin:20px 0; }
+    button { background:#3498db; color:#fff; border:none; padding:12px 24px; margin:0 8px; font-size:1rem; border-radius:6px; cursor:pointer; transition:.2s; }
+    button:hover { background:#2980b9; }
+    button:disabled { background:#c7c7c7; cursor:not-allowed; }
+    .status { margin-top:15px; font-size:.95rem; color:#34495e; }
+    .status .err { color:#e74c3c; font-weight:600; }
+    .progress-bar { width:100%; height:6px; background:#ecf0f1; border-radius:3px; margin-top:10px; overflow:hidden; }
+    .progress { height:100%; background:#2ecc71; width:0%; transition:width .2s; }
+    .speech-controls { margin-top:20px; display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap; }
+    .speed-slider { width:130px; }
+    .output { text-align:left; margin:20px auto 0; max-width:900px; background:#fafafa; border:1px solid #eee; border-radius:8px; padding:12px 14px; height:180px; overflow:auto; white-space:pre-wrap; }
+    small.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color:#7f8c8d; }
   </style>
 </head>
 <body>
@@ -128,19 +43,27 @@
       <button id="readBtn" disabled>🗣️ Read Aloud</button>
     </div>
 
-    <div class="status" id="status">Ready to process.</div>
+    <div class="status" id="status">Ready to process. <small class="mono">(first run downloads OCR models)</small></div>
     <div class="progress-bar"><div id="progress" class="progress"></div></div>
 
     <div class="speech-controls">
       <label for="speedSlider">Speed:</label>
       <input type="range" id="speedSlider" min="0.5" max="2" step="0.1" value="1" class="speed-slider" />
     </div>
+
+    <div id="output" class="output" placeholder="Extracted text will appear here…"></div>
   </div>
 
-  <!-- Load Tesseract.js -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v2.0.0/dist/tesseract.min.js"></script>
-
+  <!-- Tesseract.js (OCR) -->
+  <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+  <!-- PDF.js (to render PDFs to images) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
+    // Configure PDF.js worker
+    if (window['pdfjsLib']) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
     const fileName = document.getElementById('fileName');
@@ -149,166 +72,147 @@
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
     const speedSlider = document.getElementById('speedSlider');
+    const output = document.getElementById('output');
 
-    // Open file picker when clicking upload area
+    let extractedText = '';
+    let detectedLang = 'eng';
+
+    // Open picker
     uploadArea.addEventListener('click', () => fileInput.click());
 
-    // Handle file selection
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      fileName.textContent = file.name;
-      processBtn.disabled = false;
-      readBtn.disabled = true;
-      status.textContent = "File selected. Ready to extract text.";
-    });
-
-    // Drag and drop support
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('active');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('active');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
+    // Drag & drop
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('active'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('active'));
+    uploadArea.addEventListener('drop', e => {
       e.preventDefault();
       uploadArea.classList.remove('active');
       const file = e.dataTransfer.files[0];
-      if (file) {
-        fileInput.files = e.dataTransfer.files;
-        fileName.textContent = file.name;
-        processBtn.disabled = false;
-        readBtn.disabled = true;
-        status.textContent = "File dropped. Ready to extract text.";
-      }
+      if (file) setFile(file);
     });
 
-    // Process PDF/Image using OCR
+    // File chosen
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) setFile(file);
+    });
+
+    function setFile(file) {
+      fileName.textContent = file.name;
+      processBtn.disabled = false;
+      readBtn.disabled = true;
+      extractedText = '';
+      output.textContent = '';
+      status.textContent = 'File selected. Ready to extract text.';
+    }
+
+    // Process
     processBtn.addEventListener('click', async () => {
       const file = fileInput.files[0];
       if (!file) return;
 
-      status.textContent = "Loading OCR engine... (first time only)";
-      progress.style.width = "20%";
-
       try {
-        // Initialize Tesseract.js
-        const worker = await Tesseract.createWorker({
-          logger: m => {
-            if (m.progress && m.progress === 1) {
-              progress.style.width = "100%";
-            }
-          },
-        });
+        status.textContent = 'Preparing OCR...';
+        progress.style.width = '10%';
 
-        // Load Gujarati + English language models
-        await worker.loadLanguage('guj', 'eng');
-        await worker.initialize('guj+eng');
+        const ocrImage = await fileToImageURL(file);
+        await runOCR(ocrImage);
 
-        status.textContent = "Extracting text from document...";
-        progress.style.width = "60%";
-
-        // If it's a PDF, convert to image first
-        if (file.type === 'application/pdf') {
-          const pdf = await PDFDocument.load(await file.arrayBuffer());
-          const page = pdf.getPage(0);
-          const image = await page.render({ scale: 2 });
-          const imageData = image.imageData;
-          const blob = new Blob([imageData], { type: 'image/png' });
-          const imageUrl = URL.createObjectURL(blob);
-
-          await worker.recognize(imageUrl);
-          const result = await worker.getOutput();
-
-          await worker.terminate();
-          processResult(result);
-        } else {
-          // For images
-          const imageUrl = URL.createObjectURL(file);
-          await worker.recognize(imageUrl);
-          const result = await worker.getOutput();
-
-          await worker.terminate();
-          processResult(result);
-        }
-
-      } catch (err) {
-        status.textContent = "❌ Error during OCR: " + err.message;
-        console.error(err);
+      } catch (e) {
+        const msg = (e && (e.message || e.reason || e.status)) ? (e.message || e.reason || e.status) : JSON.stringify(e);
+        status.innerHTML = '❌ <span class="err">Error during OCR:</span> ' + msg;
+        console.error('OCR error:', e);
       }
     });
 
-    function processResult(result) {
-      const extractedText = result.text.trim();
+    async function fileToImageURL(file) {
+      if (file.type === 'application/pdf') {
+        if (!window['pdfjsLib']) throw new Error('PDF renderer not loaded.');
+        // Render first page of PDF to image
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        return canvas.toDataURL('image/png');
+      } else {
+        // Image file
+        return URL.createObjectURL(file);
+      }
+    }
+
+    async function runOCR(imageURL) {
+      progress.style.width = '20%';
+      status.textContent = 'Loading OCR engine and Gujarati model (first run may take 10–20s)...';
+
+      const worker = await Tesseract.createWorker({
+        logger: m => {
+          if (m && m.progress != null) {
+            progress.style.width = Math.max(25, Math.round(m.progress * 100)) + '%';
+          }
+        },
+        // Path that contains guj.traineddata (and many others)
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+      });
+
+      await worker.load();                       // Load core
+      await worker.loadLanguage('eng+guj');      // Load languages
+      await worker.initialize('eng+guj');        // Init
+
+      status.textContent = 'Recognizing text...';
+      const { data: { text } } = await worker.recognize(imageURL);
+      await worker.terminate();
+
+      processText(text || '');
+    }
+
+    function processText(text) {
+      extractedText = (text || '').trim();
+      output.textContent = extractedText;
+
       if (!extractedText) {
-        status.textContent = "⚠️ No text found in the document.";
+        status.textContent = '⚠️ No text found. Try a sharper image or higher contrast.';
+        readBtn.disabled = true;
         return;
       }
 
-      // Detect language (simple heuristic)
-      const isGujarati = /[\u0A80-\u0AFF]/.test(extractedText); // Gujarati Unicode range
-      const detectedLang = isGujarati ? 'guj' : 'eng';
+      // Detect Gujarati characters
+      const isGujarati = /[\u0A80-\u0AFF]/.test(extractedText);
+      detectedLang = isGujarati ? 'gu' : 'en';
 
-      // Update status
-      status.textContent = `✅ Text extracted (${extractedText.length} characters). Language: ${detectedLang.toUpperCase()}`;
+      status.textContent = `✅ Text extracted (${extractedText.length} chars). Detected: ${isGujarati ? 'Gujarati' : 'English'}.`;
       readBtn.disabled = false;
-
-      // Store text globally
-      window.sdesaireaderText = extractedText;
-      window.sdesaireaderLang = detectedLang;
     }
 
     // Read aloud
     readBtn.addEventListener('click', () => {
-      const text = window.sdesaireaderText;
-      if (!text) {
-        status.textContent = "❌ No text to read. Please extract text first.";
-        return;
-      }
+      if (!extractedText) { status.textContent = '❌ No text to read. Run OCR first.'; return; }
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      const utter = new SpeechSynthesisUtterance(extractedText);
       const voices = speechSynthesis.getVoices();
-      const lang = window.sdesaireaderLang;
 
-      // Try to find a Gujarati voice
-      const gujaratiVoice = voices.find(v => v.lang.startsWith('gu'));
-      if (gujaratiVoice && lang === 'guj') {
-        utterance.voice = gujaratiVoice;
-      } else {
-        // Fallback to English
-        const englishVoice = voices.find(v => v.lang.startsWith('en'));
-        if (englishVoice) utterance.voice = englishVoice;
-      }
+      // Prefer Gujarati if detected and available
+      const guVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('gu'));
+      const enVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en'));
 
-      utterance.rate = parseFloat(speedSlider.value);
-      utterance.onstart = () => {
-        status.textContent = "🔊 Reading aloud...";
-      };
-      utterance.onend = () => {
-        status.textContent = "✅ Finished reading.";
-      };
+      if (detectedLang === 'gu' && guVoice) utter.voice = guVoice;
+      else if (enVoice) utter.voice = enVoice;
 
-      speechSynthesis.speak(utterance);
+      utter.rate = parseFloat(speedSlider.value);
+      utter.onstart = () => status.textContent = '🔊 Reading aloud...';
+      utter.onend = () => status.textContent = '✅ Finished reading.';
+      speechSynthesis.cancel(); // stop any previous
+      speechSynthesis.speak(utter);
     });
 
-    // Load voices on startup
+    // Voice availability notice
     window.speechSynthesis.onvoiceschanged = () => {
-      const voices = speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        status.textContent += " Voices loaded.";
-      }
+      const v = speechSynthesis.getVoices();
+      if (!v || v.length === 0) status.textContent += ' (No speech voices available on this device)';
     };
-
-    // Initial voice check
-    setTimeout(() => {
-      if (speechSynthesis.getVoices().length === 0) {
-        status.textContent += " (No voices available. Install Gujarati voice on device.)";
-      }
-    }, 1000);
   </script>
 </body>
 </html>
