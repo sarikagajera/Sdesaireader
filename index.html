@@ -3,47 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sdesaireader - Auto-Language Mode</title>
+  <title>Sdesaireader — Production-Ready</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background:#f4f6f9; margin:0; padding:20px; text-align:center; }
-    .container { max-width:600px; margin:0 auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.1); }
-    .upload-area { border:3px dashed #3498db; padding:40px; margin:20px 0; cursor:pointer; border-radius:10px; transition:.3s; }
+    body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; background:#f5f7fa; margin:0; padding:20px; color:#333; }
+    .container { max-width:600px; margin:0 auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 3px 10px rgba(0,0,0,.08); }
+    h2 { margin-top:0; color:#2c3e50; }
+    .upload-area { border:2px dashed #3498db; padding:35px 20px; margin:20px 0; cursor:pointer; border-radius:10px; transition:.3s; }
     .upload-area:hover { background:#e3f2fd; }
-    button { background:#3498db; color:#fff; border:none; padding:12px 20px; margin:5px; border-radius:6px; font-weight:bold; cursor:pointer; }
-    button:disabled { background:#ccc; opacity:0.7; }
-    #output { text-align:left; background:#f9f9f9; padding:15px; border-radius:8px; height:150px; overflow-y:auto; margin-top:20px; white-space:pre-wrap; border:1px solid #ddd; font-size:0.95rem; }
-    .status { color: #2c3e50; font-weight:600; margin: 12px 0; font-size:1rem; }
-    .lang-indicator { font-size:0.9rem; color:#27ae60; font-weight:bold; margin-top:5px; }
-    .audio-player { margin-top: 20px; width: 100%; display:none; }
+    button { background:#2980b9; color:#fff; border:none; padding:12px 24px; margin:6px 4px; border-radius:6px; font-weight:600; cursor:pointer; font-size:1rem; }
+    button:disabled { background:#bdc3c7; opacity:0.7; cursor:not-allowed; }
+    #output { text-align:left; background:#fafafa; padding:14px; border-radius:8px; height:150px; overflow-y:auto; margin-top:20px; white-space:pre-wrap; border:1px solid #eee; font-size:0.95rem; line-height:1.5; }
+    .status { font-weight:600; margin:12px 0; padding:8px 12px; border-radius:6px; display:inline-block; min-width:200px; }
+    .status.ok { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+    .status.warn { background:#fff3cd; color:#856404; border:1px solid #ffeaa7; }
+    .status.err { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+    .lang-indicator { font-size:0.95rem; margin-top:8px; color:#27ae60; font-weight:bold; }
+    .voice-info { font-size:0.85rem; color:#7f8c8d; margin-top:5px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>🤖 Sdesaireader — Auto-Language Mode</h2>
-    <p><small>Detects language & reads aloud — no setup needed!</small></p>
-    
+    <h2>🎧 Sdesaireader — Guaranteed Audio</h2>
+    <p><small>No setup. No installs. Works on any phone.</small></p>
+
     <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-      <p id="uploadText">📁 Tap to Upload Scanned PDF or Image</p>
+      <p id="uploadText">📁 Tap to Upload PDF or Image</p>
       <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
     </div>
 
     <div class="status" id="status">Status: Ready</div>
-    <div class="lang-indicator" id="langIndicator">Language: Not detected yet</div>
-    
+    <div class="lang-indicator" id="langIndicator">Language: Not detected</div>
+    <div class="voice-info" id="voiceInfo">Voice: Checking...</div>
+
     <button id="processBtn" disabled>🔍 Extract Text</button>
     <hr>
-    
     <button id="readBtn" disabled>🗣️ Play Audio</button>
     <button id="stopBtn">⏹️ Stop</button>
 
-    <div id="output">Extracted text will appear here...</div>
-    
-    <div class="audio-player" id="audioPlayer">
-      <audio id="audioElement" controls style="width:100%;"></audio>
-    </div>
+    <div id="output">Extracted text appears here…</div>
   </div>
 
+  <!-- Tesseract.js -->
   <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+
   <script>
     const fileInput = document.getElementById('fileInput');
     const processBtn = document.getElementById('processBtn');
@@ -51,56 +53,78 @@
     const stopBtn = document.getElementById('stopBtn');
     const status = document.getElementById('status');
     const langIndicator = document.getElementById('langIndicator');
+    const voiceInfo = document.getElementById('voiceInfo');
     const output = document.getElementById('output');
-    const audioElement = document.getElementById('audioElement');
-    const audioPlayer = document.getElementById('audioPlayer');
 
     let extractedText = "";
-    let detectedLang = "en"; // default
+    let detectedLang = "en";
+    let voices = [];
+    let isSpeaking = false;
 
-    // 🔍 Detect language from text
+    // 🧠 Language Detection (improved)
     function detectLanguage(text) {
-      if (!text || text.trim().length === 0) return "en";
+      if (!text || text.trim().length < 3) return "en";
 
       const gujCount = (text.match(/[\u0A80-\u0AFF]/g) || []).length;
       const devaCount = (text.match(/[\u0900-\u097F]/g) || []).length;
       const engCount = (text.match(/[a-zA-Z]/g) || []).length;
 
-      // Weighted heuristic (Gujarati > Devanagari > English)
-      if (gujCount > 3) return "gu";
-      if (devaCount > 3) return "hi";
-      if (engCount > 10) return "en";
-
-      // Fallback: check first few non-space chars
-      const sample = text.replace(/\s/g, '').substring(0, 20);
-      if (/[\u0A80-\u0AFF]/.test(sample)) return "gu";
-      if (/[\u0900-\u097F]/.test(sample)) return "hi";
-      return "en";
+      if (gujCount > 5) return "gu";
+      if (devaCount > 5) return "hi";
+      if (engCount > 15) return "en";
+      return "en"; // safe default
     }
 
-    // 🎯 Set language badge & update status
-    function setLanguage(lang) {
-      const names = { gu: "Gujarati", hi: "Hindi", en: "English" };
-      detectedLang = lang;
-      langIndicator.textContent = `Language: ${names[lang]} ✅`;
-      langIndicator.style.color = "#27ae60";
+    // 🎙️ Load & cache voices
+    function loadVoices() {
+      voices = speechSynthesis.getVoices();
+      const guj = voices.filter(v => v.lang.toLowerCase().includes('gu'));
+      const hi = voices.filter(v => v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('devanagari'));
+      const en = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+
+      if (guj.length > 0) {
+        detectedLang = "gu";
+        voiceInfo.textContent = `✅ Gujarati voice found: "${guj[0].name}"`;
+      } else if (hi.length > 0) {
+        detectedLang = "hi";
+        voiceInfo.textContent = `✅ Hindi voice found: "${hi[0].name}"`;
+      } else if (en.length > 0) {
+        detectedLang = "en";
+        voiceInfo.textContent = `✅ English voice found: "${en[0].name}"`;
+      } else {
+        voiceInfo.textContent = "⚠️ No voices detected. Try restarting browser.";
+      }
+    }
+
+    // ⏱️ Wait for voices with timeout
+    async function waitForVoices(maxWaitMs = 5000) {
+      return new Promise((resolve) => {
+        const start = Date.now();
+        const check = () => {
+          if (voices.length > 0) return resolve(true);
+          if (Date.now() - start > maxWaitMs) return resolve(false);
+          setTimeout(check, 200);
+        };
+        check();
+      });
     }
 
     // 📥 File selection
     fileInput.onchange = () => {
-      if(fileInput.files[0]) {
-        status.textContent = "Status: File selected. Click Extract.";
+      if (fileInput.files[0]) {
+        status.className = "status warn";
+        status.textContent = "Status: File selected";
         processBtn.disabled = false;
         document.getElementById('uploadText').textContent = fileInput.files[0].name;
       }
     };
 
-    // 🧠 OCR Extraction
+    // 🧾 OCR
     processBtn.onclick = async () => {
+      status.className = "status warn";
       status.textContent = "Status: Extracting text...";
       processBtn.disabled = true;
       readBtn.disabled = true;
-      audioPlayer.style.display = "none";
 
       try {
         const file = fileInput.files[0];
@@ -108,7 +132,6 @@
         await worker.load();
         await worker.loadLanguage('guj+eng+hin');
         await worker.initialize('guj+eng+hin');
-        
         const { data: { text } } = await worker.recognize(file);
         await worker.terminate();
 
@@ -116,75 +139,112 @@
         output.textContent = extractedText;
 
         if (!extractedText) {
+          status.className = "status err";
           status.textContent = "Status: No text found. Try clearer image.";
           readBtn.disabled = true;
-          setLanguage("en");
+          langIndicator.textContent = "Language: None";
         } else {
-          // 🔎 Auto-detect & update UI
           const lang = detectLanguage(extractedText);
-          setLanguage(lang);
+          detectedLang = lang;
+          const names = { gu: "Gujarati", hi: "Hindi", en: "English" };
+          langIndicator.textContent = `Language: ${names[lang]} ✅`;
 
-          status.textContent = `Status: Extracted (${extractedText.length} chars). Ready to play.`;
+          status.className = "status ok";
+          status.textContent = `Status: Extracted (${extractedText.length} chars)`;
           readBtn.disabled = false;
         }
       } catch (error) {
+        status.className = "status err";
         status.textContent = `❌ OCR Error: ${error.message || 'Unknown'}`;
         console.error(error);
         processBtn.disabled = false;
       }
     };
 
-    // ▶️ Play Audio (Google TTS)
+    // ▶️ Speak with full reliability
     readBtn.onclick = async () => {
-      if (!extractedText) return;
-
-      status.textContent = `Status: Generating ${detectedLang === 'gu' ? 'Gujarati' : detectedLang === 'hi' ? 'Hindi' : 'English'} audio...`;
-      readBtn.disabled = true;
-
-      try {
-        // Truncate for safety (Google TTS limit ~200 chars)
-        const textToSpeak = encodeURIComponent(extractedText.substring(0, 180));
-        const speed = 1.0; // Fixed for reliability on mobile
-
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${detectedLang}&q=${textToSpeak}&ttsspeed=${speed}`;
-
-        audioElement.src = url;
-        audioPlayer.style.display = "block";
-        audioElement.play();
-
-        status.textContent = `🔊 Playing in ${detectedLang.toUpperCase()}...`;
-
-        audioElement.onended = () => {
-          status.textContent = "✅ Audio finished.";
-          readBtn.disabled = false;
-        };
-
-        audioElement.onerror = () => {
-          status.textContent = "⚠️ Audio failed. Trying fallback...";
-          setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance(extractedText.substring(0, 500));
-            utterance.lang = detectedLang;
-            utterance.rate = 0.9;
-            speechSynthesis.speak(utterance);
-            status.textContent = `🗣️ Fallback: Speaking in ${detectedLang.toUpperCase()}`;
-          }, 500);
-        };
-      } catch (err) {
-        status.textContent = "❌ Audio error: " + err.message;
-        readBtn.disabled = false;
+      if (!extractedText) {
+        status.className = "status err";
+        status.textContent = "❌ No text to speak. Extract first.";
+        return;
       }
+
+      status.className = "status warn";
+      status.textContent = "Status: Preparing audio...";
+
+      // Ensure voices are loaded
+      const voicesLoaded = await waitForVoices(4000);
+      if (!voicesLoaded) {
+        status.className = "status err";
+        status.textContent = "❌ Voices not ready. Try again in a few seconds.";
+        return;
+      }
+
+      // Pick best voice
+      const langMap = {
+        gu: v => v.lang.toLowerCase().includes('gu'),
+        hi: v => v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('devanagari'),
+        en: v => v.lang.toLowerCase().startsWith('en')
+      };
+
+      const bestVoice = voices.find(langMap[detectedLang]) || voices[0];
+
+      if (!bestVoice) {
+        status.className = "status err";
+        status.textContent = "❌ No matching voice found.";
+        return;
+      }
+
+      // Sanitize text
+      const cleanText = extractedText.replace(/\s+/g, ' ').trim().substring(0, 500);
+      if (!cleanText) {
+        status.className = "status err";
+        status.textContent = "❌ Nothing to say (empty text).";
+        return;
+      }
+
+      // Speak!
+      const utter = new SpeechSynthesisUtterance(cleanText);
+      utter.voice = bestVoice;
+      utter.rate = 0.9;
+      utter.pitch = 1.0;
+
+      utter.onstart = () => {
+        isSpeaking = true;
+        status.className = "status ok";
+        status.textContent = `🔊 Speaking in ${detectedLang.toUpperCase()}...`;
+      };
+
+      utter.onend = () => {
+        isSpeaking = false;
+        status.className = "status ok";
+        status.textContent = "✅ Done.";
+      };
+
+      utter.onerror = (event) => {
+        isSpeaking = false;
+        status.className = "status err";
+        status.textContent = `❌ Speech error: ${event.error || 'Unknown'}`;
+        console.error("Speech error:", event);
+      };
+
+      speechSynthesis.cancel(); // stop any previous
+      speechSynthesis.speak(utter);
     };
 
     // ⏹️ Stop
     stopBtn.onclick = () => {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-      if (window.speechSynthesis) speechSynthesis.cancel();
+      speechSynthesis.cancel();
+      isSpeaking = false;
+      status.className = "status ok";
       status.textContent = "⏹️ Stopped.";
-      readBtn.disabled = false;
     };
 
-    // 🖱️ Drag & Drop Support
+    // 🚀 Initialize
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices(); // run once immediately
+
+    // 🖱️ Drag & Drop
     const uploadArea = document.querySelector('.upload-area');
     ['dragover', 'dragleave', 'drop'].forEach(evt =>
       uploadArea.addEventListener(evt, e => {
