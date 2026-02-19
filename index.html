@@ -1,265 +1,275 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="gu">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sdesaireader — Production-Ready</title>
+  <title>Sdesaireader - Gujarati Only</title>
   <style>
-    body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; background:#f5f7fa; margin:0; padding:20px; color:#333; }
-    .container { max-width:600px; margin:0 auto; padding:20px; background:#fff; border-radius:12px; box-shadow:0 3px 10px rgba(0,0,0,.08); }
-    h2 { margin-top:0; color:#2c3e50; }
-    .upload-area { border:2px dashed #3498db; padding:35px 20px; margin:20px 0; cursor:pointer; border-radius:10px; transition:.3s; }
-    .upload-area:hover { background:#e3f2fd; }
-    button { background:#2980b9; color:#fff; border:none; padding:12px 24px; margin:6px 4px; border-radius:6px; font-weight:600; cursor:pointer; font-size:1rem; }
-    button:disabled { background:#bdc3c7; opacity:0.7; cursor:not-allowed; }
-    #output { text-align:left; background:#fafafa; padding:14px; border-radius:8px; height:150px; overflow-y:auto; margin-top:20px; white-space:pre-wrap; border:1px solid #eee; font-size:0.95rem; line-height:1.5; }
-    .status { font-weight:600; margin:12px 0; padding:8px 12px; border-radius:6px; display:inline-block; min-width:200px; }
-    .status.ok { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
-    .status.warn { background:#fff3cd; color:#856404; border:1px solid #ffeaa7; }
-    .status.err { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
-    .lang-indicator { font-size:0.95rem; margin-top:8px; color:#27ae60; font-weight:bold; }
-    .voice-info { font-size:0.85rem; color:#7f8c8d; margin-top:5px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    .container { 
+      max-width: 500px; 
+      margin: 0 auto; 
+      background: white; 
+      border-radius: 20px; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .header { 
+      background: #2c3e50; 
+      color: white; 
+      padding: 20px; 
+      text-align: center; 
+    }
+    .upload-area { 
+      border: 3px dashed #3498db; 
+      padding: 40px 20px; 
+      margin: 20px; 
+      border-radius: 15px; 
+      cursor: pointer; 
+      background: #f8f9fa;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    .upload-area:hover { background: #e3f2fd; }
+    button { 
+      width: 100%; 
+      padding: 15px; 
+      margin: 10px 20px; 
+      border: none; 
+      border-radius: 10px; 
+      font-size: 16px; 
+      font-weight: bold; 
+      cursor: pointer; 
+      transition: all 0.3s;
+    }
+    .extract-btn { background: #3498db; color: white; }
+    .extract-btn:disabled { background: #bdc3c7; }
+    .read-btn { background: #27ae60; color: white; }
+    .read-btn:disabled { background: #bdc3c7; }
+    .stop-btn { background: #e74c3c; color: white; }
+    #output { 
+      min-height: 150px; 
+      padding: 20px; 
+      margin: 0 20px 20px 20px; 
+      background: #f8f9fa; 
+      border-radius: 10px; 
+      border: 1px solid #dee2e6;
+      white-space: pre-wrap;
+      font-size: 16px;
+      line-height: 1.6;
+      text-align: left;
+    }
+    .status { 
+      padding: 15px; 
+      text-align: center; 
+      font-weight: bold; 
+      font-size: 16px;
+      background: #d4edda;
+      color: #155724;
+      border-bottom: 1px solid #c3e6cb;
+    }
+    .error { 
+      background: #f8d7da !important; 
+      color: #721c24 !important; 
+      border-bottom-color: #f5c6cb !important;
+    }
+    .voice-info { 
+      background: #d1ecf1; 
+      color: #0c5460; 
+      padding: 10px; 
+      font-size: 14px; 
+      text-align: center;
+      display: none;
+    }
+    .voice-missing { 
+      background: #fff3cd !important; 
+      color: #856404 !important; 
+      display: block !important;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>🎧 Sdesaireader — Guaranteed Audio</h2>
-    <p><small>No setup. No installs. Works on any phone.</small></p>
+    <div class="header">
+      <h1>📖 Sdesaireader</h1>
+      <p>Read Gujarati text aloud</p>
+    </div>
+
+    <div class="voice-info" id="voiceInfo">
+      ✅ Gujarati voice ready! Ready to read.
+    </div>
 
     <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-      <p id="uploadText">📁 Tap to Upload PDF or Image</p>
+      <p id="uploadText">📁 Tap to upload image or PDF</p>
       <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
     </div>
 
-    <div class="status" id="status">Status: Ready</div>
-    <div class="lang-indicator" id="langIndicator">Language: Not detected</div>
-    <div class="voice-info" id="voiceInfo">Voice: Checking...</div>
+    <div class="status" id="status">Ready to start</div>
 
-    <button id="processBtn" disabled>🔍 Extract Text</button>
-    <hr>
-    <button id="readBtn" disabled>🗣️ Play Audio</button>
-    <button id="stopBtn">⏹️ Stop</button>
+    <button class="extract-btn" id="extractBtn" disabled>🔍 Extract Text</button>
+    <button class="read-btn" id="readBtn" disabled>🗣️ Read in Gujarati</button>
+    <button class="stop-btn" id="stopBtn">⏹️ Stop</button>
 
-    <div id="output">Extracted text appears here…</div>
+    <div id="output">Your extracted text will appear here...</div>
   </div>
 
-  <!-- Tesseract.js -->
   <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
 
   <script>
     const fileInput = document.getElementById('fileInput');
-    const processBtn = document.getElementById('processBtn');
+    const extractBtn = document.getElementById('extractBtn');
     const readBtn = document.getElementById('readBtn');
     const stopBtn = document.getElementById('stopBtn');
     const status = document.getElementById('status');
-    const langIndicator = document.getElementById('langIndicator');
-    const voiceInfo = document.getElementById('voiceInfo');
     const output = document.getElementById('output');
+    const voiceInfo = document.getElementById('voiceInfo');
 
     let extractedText = "";
-    let detectedLang = "en";
-    let voices = [];
-    let isSpeaking = false;
+    let hasGujaratiVoice = false;
 
-    // 🧠 Language Detection (improved)
-    function detectLanguage(text) {
-      if (!text || text.trim().length < 3) return "en";
-
-      const gujCount = (text.match(/[\u0A80-\u0AFF]/g) || []).length;
-      const devaCount = (text.match(/[\u0900-\u097F]/g) || []).length;
-      const engCount = (text.match(/[a-zA-Z]/g) || []).length;
-
-      if (gujCount > 5) return "gu";
-      if (devaCount > 5) return "hi";
-      if (engCount > 15) return "en";
-      return "en"; // safe default
-    }
-
-    // 🎙️ Load & cache voices
-    function loadVoices() {
-      voices = speechSynthesis.getVoices();
-      const guj = voices.filter(v => v.lang.toLowerCase().includes('gu'));
-      const hi = voices.filter(v => v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('devanagari'));
-      const en = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
-
-      if (guj.length > 0) {
-        detectedLang = "gu";
-        voiceInfo.textContent = `✅ Gujarati voice found: "${guj[0].name}"`;
-      } else if (hi.length > 0) {
-        detectedLang = "hi";
-        voiceInfo.textContent = `✅ Hindi voice found: "${hi[0].name}"`;
-      } else if (en.length > 0) {
-        detectedLang = "en";
-        voiceInfo.textContent = `✅ English voice found: "${en[0].name}"`;
+    // Check for Gujarati voice
+    function checkGujaratiVoice() {
+      const voices = window.speechSynthesis.getVoices();
+      hasGujaratiVoice = voices.some(voice => 
+        voice.lang.toLowerCase().includes('gu') || 
+        voice.name.toLowerCase().includes('gujarati')
+      );
+      
+      if (hasGujaratiVoice) {
+        voiceInfo.className = "voice-info";
+        voiceInfo.innerHTML = "✅ <strong>Gujarati voice found!</strong> Ready to read.";
       } else {
-        voiceInfo.textContent = "⚠️ No voices detected. Try restarting browser.";
+        voiceInfo.className = "voice-info voice-missing";
+        voiceInfo.innerHTML = `
+          ⚠️ <strong>Gujarati voice missing!</strong><br>
+          <small>
+            <strong>iPhone:</strong> Settings → Accessibility → Spoken Content → Voices → Gujarati → Download<br>
+            <strong>Android:</strong> Settings → Google → Voice → Text-to-speech → Install voice data (Gujarati)
+          </small>
+        `;
       }
     }
 
-    // ⏱️ Wait for voices with timeout
-    async function waitForVoices(maxWaitMs = 5000) {
-      return new Promise((resolve) => {
-        const start = Date.now();
-        const check = () => {
-          if (voices.length > 0) return resolve(true);
-          if (Date.now() - start > maxWaitMs) return resolve(false);
-          setTimeout(check, 200);
-        };
-        check();
-      });
+    // Load voices when available
+    if (window.speechSynthesis.getVoices().length > 0) {
+      checkGujaratiVoice();
+    } else {
+      window.speechSynthesis.onvoiceschanged = checkGujaratiVoice;
+      // Force load
+      setTimeout(() => window.speechSynthesis.getVoices(), 100);
     }
 
-    // 📥 File selection
-    fileInput.onchange = () => {
-      if (fileInput.files[0]) {
-        status.className = "status warn";
-        status.textContent = "Status: File selected";
-        processBtn.disabled = false;
-        document.getElementById('uploadText').textContent = fileInput.files[0].name;
+    // File upload
+    fileInput.onchange = function() {
+      if (this.files.length > 0) {
+        status.textContent = "File selected! Click Extract.";
+        extractBtn.disabled = false;
+        document.getElementById('uploadText').textContent = this.files[0].name;
       }
     };
 
-    // 🧾 OCR
-    processBtn.onclick = async () => {
-      status.className = "status warn";
-      status.textContent = "Status: Extracting text...";
-      processBtn.disabled = true;
-      readBtn.disabled = true;
-
+    // Extract text
+    extractBtn.onclick = async function() {
+      status.textContent = "Extracting text...";
+      extractBtn.disabled = true;
+      
       try {
-        const file = fileInput.files[0];
-        const worker = await Tesseract.createWorker();
-        await worker.load();
-        await worker.loadLanguage('guj+eng+hin');
-        await worker.initialize('guj+eng+hin');
-        const { data: { text } } = await worker.recognize(file);
+        const worker = await Tesseract.createWorker('eng+hin+guj');
+        await worker.loadLanguage('eng+hin+guj');
+        await worker.initialize('eng+hin+guj');
+        const { data: { text } } = await worker.recognize(fileInput.files[0]);
         await worker.terminate();
 
-        extractedText = text.trim();
-        output.textContent = extractedText;
+        // Clean Gujarati text: keep only Gujarati characters, spaces, and basic punctuation
+        extractedText = text
+          .replace(/[^\u0A80-\u0AFF\u0020\u002C\u002E\u003F\u003A]/g, '') // Keep Gujarati + space, comma, dot, ?, :
+          .replace(/\s+/g, ' ')
+          .trim();
 
-        if (!extractedText) {
-          status.className = "status err";
-          status.textContent = "Status: No text found. Try clearer image.";
-          readBtn.disabled = true;
-          langIndicator.textContent = "Language: None";
-        } else {
-          const lang = detectLanguage(extractedText);
-          detectedLang = lang;
-          const names = { gu: "Gujarati", hi: "Hindi", en: "English" };
-          langIndicator.textContent = `Language: ${names[lang]} ✅`;
-
-          status.className = "status ok";
-          status.textContent = `Status: Extracted (${extractedText.length} chars)`;
+        output.textContent = extractedText || "No Gujarati text found.";
+        
+        if (extractedText.length > 5) {
+          status.textContent = `Gujarati text extracted! (${extractedText.length} chars)`;
           readBtn.disabled = false;
+        } else {
+          status.className = "status error";
+          status.textContent = "No clear Gujarati text found. Try a clearer image.";
+          readBtn.disabled = true;
         }
       } catch (error) {
-        status.className = "status err";
-        status.textContent = `❌ OCR Error: ${error.message || 'Unknown'}`;
+        status.className = "status error";
+        status.textContent = "Error extracting text. Try again.";
         console.error(error);
-        processBtn.disabled = false;
       }
+      
+      extractBtn.disabled = false;
     };
 
-    // ▶️ Speak with full reliability
-    readBtn.onclick = async () => {
-      if (!extractedText) {
-        status.className = "status err";
-        status.textContent = "❌ No text to speak. Extract first.";
+    // Read in Gujarati only
+    readBtn.onclick = function() {
+      if (!hasGujaratiVoice) {
+        status.className = "status error";
+        status.textContent = "Gujarati voice required! Please install it first.";
         return;
       }
 
-      status.className = "status warn";
-      status.textContent = "Status: Preparing audio...";
-
-      // Ensure voices are loaded
-      const voicesLoaded = await waitForVoices(4000);
-      if (!voicesLoaded) {
-        status.className = "status err";
-        status.textContent = "❌ Voices not ready. Try again in a few seconds.";
+      if (!extractedText || extractedText.length < 5) {
+        status.className = "status error";
+        status.textContent = "No Gujarati text to read.";
         return;
       }
 
-      // Pick best voice
-      const langMap = {
-        gu: v => v.lang.toLowerCase().includes('gu'),
-        hi: v => v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('devanagari'),
-        en: v => v.lang.toLowerCase().startsWith('en')
-      };
+      window.speechSynthesis.cancel();
 
-      const bestVoice = voices.find(langMap[detectedLang]) || voices[0];
+      const utterance = new SpeechSynthesisUtterance(extractedText);
+      
+      // Force Gujarati voice only
+      const gujVoice = window.speechSynthesis.getVoices().find(voice => 
+        voice.lang.toLowerCase().includes('gu') || 
+        voice.name.toLowerCase().includes('gujarati')
+      );
 
-      if (!bestVoice) {
-        status.className = "status err";
-        status.textContent = "❌ No matching voice found.";
-        return;
+      if (gujVoice) {
+        utterance.voice = gujVoice;
+        utterance.lang = 'gu-IN';
       }
 
-      // Sanitize text
-      const cleanText = extractedText.replace(/\s+/g, ' ').trim().substring(0, 500);
-      if (!cleanText) {
-        status.className = "status err";
-        status.textContent = "❌ Nothing to say (empty text).";
-        return;
-      }
+      utterance.rate = 0.85; // Slightly slower for clarity
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
-      // Speak!
-      const utter = new SpeechSynthesisUtterance(cleanText);
-      utter.voice = bestVoice;
-      utter.rate = 0.9;
-      utter.pitch = 1.0;
-
-      utter.onstart = () => {
-        isSpeaking = true;
-        status.className = "status ok";
-        status.textContent = `🔊 Speaking in ${detectedLang.toUpperCase()}...`;
+      utterance.onstart = function() {
+        status.textContent = "Reading in Gujarati... 🎤";
+        readBtn.disabled = true;
       };
 
-      utter.onend = () => {
-        isSpeaking = false;
-        status.className = "status ok";
-        status.textContent = "✅ Done.";
+      utterance.onend = function() {
+        status.textContent = "Finished reading! ✅";
+        readBtn.disabled = false;
       };
 
-      utter.onerror = (event) => {
-        isSpeaking = false;
-        status.className = "status err";
-        status.textContent = `❌ Speech error: ${event.error || 'Unknown'}`;
-        console.error("Speech error:", event);
+      utterance.onerror = function(event) {
+        status.className = "status error";
+        status.textContent = `Error: ${event.error}. Check voice settings.`;
+        readBtn.disabled = false;
       };
 
-      speechSynthesis.cancel(); // stop any previous
-      speechSynthesis.speak(utter);
+      window.speechSynthesis.speak(utterance);
     };
 
-    // ⏹️ Stop
-    stopBtn.onclick = () => {
-      speechSynthesis.cancel();
-      isSpeaking = false;
-      status.className = "status ok";
-      status.textContent = "⏹️ Stopped.";
+    // Stop
+    stopBtn.onclick = function() {
+      window.speechSynthesis.cancel();
+      status.textContent = "Stopped. Ready to read again.";
+      readBtn.disabled = false;
     };
-
-    // 🚀 Initialize
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    loadVoices(); // run once immediately
-
-    // 🖱️ Drag & Drop
-    const uploadArea = document.querySelector('.upload-area');
-    ['dragover', 'dragleave', 'drop'].forEach(evt =>
-      uploadArea.addEventListener(evt, e => {
-        e.preventDefault();
-        if (evt === 'dragover') uploadArea.style.backgroundColor = '#e3f2fd';
-        if (evt === 'dragleave' || evt === 'drop') uploadArea.style.backgroundColor = '';
-      })
-    );
-
-    uploadArea.addEventListener('drop', e => {
-      if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        fileInput.onchange();
-      }
-    });
   </script>
 </body>
 </html>
