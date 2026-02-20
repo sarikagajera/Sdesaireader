@@ -189,7 +189,6 @@
     #output.placeholder { color: var(--muted); font-style: italic; }
 
     /* ── PROGRESS ── */
-    .progress-wrap { display: none; margin-top: 12px; }
     .progress-bar {
       height: 4px; background: var(--border); border-radius: 99px; overflow: hidden;
     }
@@ -241,45 +240,17 @@
     </div>
   </div>
 
-  <!-- STEP 2: Language for OCR -->
-  <div class="card">
-    <div class="card-header">② OCR Language (for images)</div>
-    <div class="card-body">
-      <label class="field-label">Select the language in the document</label>
-      <select id="ocrLang">
-        <option value="eng">English</option>
-        <option value="guj">Gujarati (ગુજરાતી)</option>
-        <option value="hin">Hindi (हिन्दी)</option>
-        <option value="eng+guj">English + Gujarati</option>
-        <option value="eng+hin">English + Hindi</option>
-        <option value="spa">Spanish</option>
-        <option value="fra">French</option>
-        <option value="deu">German</option>
-        <option value="por">Portuguese</option>
-        <option value="ita">Italian</option>
-        <option value="rus">Russian</option>
-        <option value="ara">Arabic</option>
-        <option value="chi_sim">Chinese (Simplified)</option>
-        <option value="jpn">Japanese</option>
-        <option value="kor">Korean</option>
-      </select>
-      <div style="margin-top:10px;font-size:0.8rem;color:var(--muted)">
-        ℹ️ For PDFs with embedded text, language selection is not needed — text is extracted directly.
-      </div>
-    </div>
+  <!-- Detected language badge -->
+  <div id="langBadge" style="display:none; margin-bottom:16px; padding:10px 16px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); font-size:0.88rem; font-weight:500; color:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+    🌐 Detected language: <strong id="langName">—</strong>
   </div>
 
-  <!-- STEP 3: Extract -->
-  <div class="card">
-    <div class="card-header">③ Re-extract (if you change language)</div>
-    <div class="card-body">
-      <button class="btn btn-primary" id="extractBtn" disabled>🔍 Extract Text</button>
-      <div class="progress-wrap" id="progressWrap">
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-label" id="progressLabel">Starting…</div>
-      </div>
-    </div>
+  <!-- Progress bar (shown during extraction, no button needed) -->
+  <div id="progressWrap" style="display:none; margin-bottom:16px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">Starting…</div>
   </div>
+  <button id="extractBtn" style="display:none"></button>
 
   <!-- STATUS -->
   <div class="status-bar" id="statusBar">
@@ -287,28 +258,14 @@
   </div>
   <div style="height:16px"></div>
 
-  <!-- OUTPUT -->
-  <div class="card">
-    <div class="card-header" style="justify-content:space-between">
-      <span>Extracted Text</span>
-      <button class="btn btn-outline" id="copyBtn" style="width:auto;padding:4px 14px;font-size:0.78rem" disabled>Copy</button>
-    </div>
-    <div class="card-body">
-      <div id="output" class="placeholder">Your extracted text will appear here…</div>
-    </div>
-  </div>
+  <!-- Hidden output (still used internally) -->
+  <div id="output" style="display:none"></div>
+  <button id="copyBtn" style="display:none"></button>
 
   <!-- STEP 4: Read Aloud -->
   <div class="card">
-    <div class="card-header">④ Read Aloud</div>
+    <div class="card-header">② Read Aloud</div>
     <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
-
-      <div>
-        <label class="field-label">Voice / Language</label>
-        <select id="voiceSelect">
-          <option value="">— Loading voices… —</option>
-        </select>
-      </div>
 
       <div class="slider-row">
         <label>Speed</label>
@@ -345,8 +302,6 @@
   const copyBtn     = document.getElementById('copyBtn');
   const statusBar   = document.getElementById('statusBar');
   const output      = document.getElementById('output');
-  const voiceSelect = document.getElementById('voiceSelect');
-  const ocrLang     = document.getElementById('ocrLang');
   const rateSlider  = document.getElementById('rateSlider');
   const pitchSlider = document.getElementById('pitchSlider');
   const rateVal     = document.getElementById('rateVal');
@@ -361,7 +316,11 @@
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+  const langBadge  = document.getElementById('langBadge');
+  const langName   = document.getElementById('langName');
+
   let extractedText = "";
+  let detectedLang  = 'en';   // BCP-47 tag used for voice matching
 
   // ── Sliders ──
   rateSlider.oninput  = () => rateVal.textContent  = parseFloat(rateSlider.value).toFixed(2) + '×';
@@ -371,31 +330,52 @@
   function loadVoices() {
     const voices = window.speechSynthesis.getVoices();
     if (!voices.length) return;
-    voiceSelect.innerHTML = '';
-    // Sort: put common languages up top
-    const priority = ['en-US','en-GB','gu-IN','hi-IN'];
-    const sorted = [...voices].sort((a,b) => {
-      const ai = priority.indexOf(a.lang), bi = priority.indexOf(b.lang);
-      if (ai !== -1 && bi === -1) return -1;
-      if (bi !== -1 && ai === -1) return 1;
-      return a.name.localeCompare(b.name);
-    });
-    sorted.forEach((v, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = `${v.name} (${v.lang})`;
-      opt.dataset.idx = voices.indexOf(v);
-      voiceSelect.appendChild(opt);
-    });
-    // Pre-select English if available
-    const englishIdx = sorted.findIndex(v => v.lang.startsWith('en'));
-    if (englishIdx >= 0) voiceSelect.selectedIndex = englishIdx;
     window._voices = voices;
-    window._sortedVoices = sorted;
   }
   window.speechSynthesis.onvoiceschanged = loadVoices;
   if (window.speechSynthesis.getVoices().length) loadVoices();
   setTimeout(loadVoices, 500);
+
+  // ── Detect language from text using Unicode script ranges ──
+  function detectLanguage(text) {
+    const counts = {};
+    const scripts = [
+      { name: 'Gujarati',   lang: 'gu-IN', tess: 'guj',     re: /[\u0A80-\u0AFF]/g },
+      { name: 'Hindi',      lang: 'hi-IN', tess: 'hin',     re: /[\u0900-\u097F]/g },
+      { name: 'Arabic',     lang: 'ar-SA', tess: 'ara',     re: /[\u0600-\u06FF]/g },
+      { name: 'Russian',    lang: 'ru-RU', tess: 'rus',     re: /[\u0400-\u04FF]/g },
+      { name: 'Chinese',    lang: 'zh-CN', tess: 'chi_sim', re: /[\u4E00-\u9FFF]/g },
+      { name: 'Japanese',   lang: 'ja-JP', tess: 'jpn',     re: /[\u3040-\u30FF]/g },
+      { name: 'Korean',     lang: 'ko-KR', tess: 'kor',     re: /[\uAC00-\uD7AF]/g },
+      { name: 'English',    lang: 'en-US', tess: 'eng',     re: /[A-Za-z]/g },
+    ];
+
+    let best = scripts[scripts.length - 1]; // default English
+    let bestCount = 0;
+
+    for (const s of scripts) {
+      const m = text.match(s.re);
+      const count = m ? m.length : 0;
+      counts[s.name] = count;
+      if (count > bestCount) { bestCount = count; best = s; }
+    }
+    return best;
+  }
+
+  // ── Pick best voice for detected language ──
+  function pickVoice(langTag) {
+    const voices = window._voices || window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+
+    const primary = langTag.toLowerCase();            // e.g. "gu-in"
+    const base    = primary.split('-')[0];            // e.g. "gu"
+
+    // Try exact match first, then base language match
+    return voices.find(v => v.lang.toLowerCase() === primary)
+        || voices.find(v => v.lang.toLowerCase().startsWith(base))
+        || voices.find(v => v.lang.toLowerCase().startsWith('en'))  // fallback English
+        || voices[0];                                               // last resort
+  }
 
   // ── Drag & Drop ──
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -416,7 +396,6 @@
     fileNameEl.textContent = f.name.length > 32 ? f.name.slice(0,30)+'…' : f.name;
     filePill.style.display = 'block';
     extractBtn.disabled = false;
-    // Auto-extract immediately
     doExtract(f);
   }
 
@@ -434,7 +413,7 @@
   }
   function hideProgress() { progressWrap.style.display = 'none'; }
 
-  // ── Extract button (manual re-extract with different language) ──
+  // ── Extract button (hidden but kept for internal use) ──
   extractBtn.onclick = async function() {
     const file = fileInput.files[0];
     if (file) doExtract(file);
@@ -445,41 +424,36 @@
     extractBtn.disabled = true;
     readBtn.disabled = true;
     copyBtn.disabled = true;
-    output.className = 'placeholder';
-    output.textContent = 'Extracting…';
+    langBadge.style.display = 'none';
     showProgress(5, 'Starting extraction…');
     setStatus('⏳ Extracting text…', 'info');
     extractedText = "";
 
     try {
       const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-
-      if (isPDF) {
-        extractedText = await extractPDF(file);
-      } else {
-        extractedText = await extractImage(file);
-      }
-
+      extractedText = isPDF ? await extractPDF(file) : await extractImage(file);
       extractedText = extractedText.trim();
 
       if (extractedText.length < 5) {
-        throw new Error("No readable text found. Try a clearer image or different language setting.");
+        throw new Error("No readable text found. Try a clearer image.");
       }
 
-      output.className = '';
-      output.textContent = extractedText;
-      setStatus(`✅ Extracted ${extractedText.length.toLocaleString()} characters`, 'success');
+      // ── Auto-detect language ──
+      const detected = detectLanguage(extractedText);
+      detectedLang = detected.lang;
+      langName.textContent = detected.name;
+      langBadge.style.display = 'block';
+
+      setStatus(`✅ Ready to read — detected ${detected.name}`, 'success');
       readBtn.disabled = false;
       copyBtn.disabled = false;
     } catch(err) {
-      output.className = 'placeholder';
-      output.textContent = '';
       setStatus('❌ ' + err.message, 'error');
     }
 
     hideProgress();
     extractBtn.disabled = false;
-  }  // end doExtract
+  }
 
   // ── PDF extraction ──
   async function extractPDF(file) {
@@ -493,63 +467,51 @@
       showProgress(10 + (i / totalPages) * 85, `Reading page ${i} of ${totalPages}…`);
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const pageText = content.items.map(item => item.str).join(' ');
-      fullText += pageText + '\n';
+      fullText += content.items.map(item => item.str).join(' ') + '\n';
     }
 
     showProgress(100, 'Done!');
 
-    // If PDF had no embedded text, try OCR on first page
     if (fullText.trim().length < 20) {
-      showProgress(50, 'No embedded text — running OCR on PDF…');
+      showProgress(50, 'No embedded text — running OCR…');
       fullText = await ocrPDFPage(file);
     }
-
     return fullText;
   }
 
   async function ocrPDFPage(file) {
-    // Render first page to canvas, then OCR
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
     return await runTesseract(blob);
   }
 
-  // ── Image OCR ──
-  async function extractImage(file) {
-    return await runTesseract(file);
-  }
+  async function extractImage(file) { return await runTesseract(file); }
 
+  // Always use broad multi-language OCR — let auto-detection handle the rest
   async function runTesseract(file) {
-    const lang = ocrLang.value;
-    showProgress(10, `Initializing OCR (${lang})…`);
+    const lang = 'eng+hin+guj';
+    showProgress(10, 'Scanning document…');
     const worker = await Tesseract.createWorker(lang);
     await worker.loadLanguage(lang);
     await worker.initialize(lang);
-
-    // Progress via logger is v2 style
     const { data: { text } } = await worker.recognize(file, {}, {
       logger: m => {
-        if (m.status === 'recognizing text') {
-          showProgress(15 + m.progress * 80, `OCR: ${Math.round(m.progress * 100)}%`);
-        }
+        if (m.status === 'recognizing text')
+          showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
       }
     });
-
     await worker.terminate();
-    showProgress(100, 'OCR complete!');
+    showProgress(100, 'Done!');
     return text;
   }
 
-  // ── Copy ──
+  // ── Copy (hidden) ──
   copyBtn.onclick = () => {
     navigator.clipboard.writeText(extractedText).then(() => {
       copyBtn.textContent = 'Copied!';
@@ -560,40 +522,26 @@
   // ── Read Aloud ──
   readBtn.onclick = function() {
     if (!extractedText || extractedText.length < 5) return;
-
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(extractedText);
 
-    // Apply selected voice if available — otherwise browser uses device default automatically
-    if (window._sortedVoices && voiceSelect.selectedIndex >= 0) {
-      const selected = window._sortedVoices[voiceSelect.selectedIndex];
-      if (selected) {
-        utterance.voice = selected;
-        utterance.lang  = selected.lang;
-      }
+    // Auto-pick voice matching detected language
+    const voice = pickVoice(detectedLang);
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang  = voice.lang;
     }
-    // If no voices loaded at all, don't set voice — browser will use its built-in default
-    // This ensures it always reads on any device, including those with limited voice packs
 
     utterance.rate   = parseFloat(rateSlider.value);
     utterance.pitch  = parseFloat(pitchSlider.value);
     utterance.volume = 1.0;
 
-    utterance.onstart = () => {
-      setStatus('🎤 Reading aloud… <span class="reading-pulse">●</span>', 'success');
-      readBtn.disabled = true;
-    };
-    utterance.onend = () => {
-      setStatus('✅ Finished reading!', 'success');
-      readBtn.disabled = false;
-    };
-    utterance.onerror = e => {
-      setStatus(`❌ Speech error: ${e.error}`, 'error');
-      readBtn.disabled = false;
-    };
-    utterance.onpause = () => setStatus('⏸ Paused', 'warning');
-    utterance.onresume= () => setStatus('🎤 Resumed reading…', 'success');
+    utterance.onstart  = () => { setStatus('🎤 Reading aloud… <span class="reading-pulse">●</span>', 'success'); readBtn.disabled = true; };
+    utterance.onend    = () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; };
+    utterance.onerror  = e  => { setStatus(`❌ Speech error: ${e.error}`, 'error'); readBtn.disabled = false; };
+    utterance.onpause  = () => setStatus('⏸ Paused', 'warning');
+    utterance.onresume = () => setStatus('🎤 Resumed reading…', 'success');
 
     window.speechSynthesis.speak(utterance);
   };
