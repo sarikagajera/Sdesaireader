@@ -394,7 +394,8 @@
   fileInput.onchange = () => { if (fileInput.files.length) setFile(fileInput.files[0]); };
 
   function setFile(f) {
-    fileNameEl.textContent = f.name.length > 32 ? f.name.slice(0,30)+'…' : f.name;
+    const name = f.name || 'Uploaded file';
+    fileNameEl.textContent = name.length > 32 ? name.slice(0,30)+'…' : name;
     filePill.style.display = 'block';
     extractBtn.disabled = false;
     doExtract(f);
