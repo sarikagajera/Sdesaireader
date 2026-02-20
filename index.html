@@ -363,18 +363,19 @@
   }
 
   // ── Pick best voice for detected language ──
+  // Returns null intentionally if nothing matches — null means "use browser default", which always works
   function pickVoice(langTag) {
     const voices = window._voices || window.speechSynthesis.getVoices();
-    if (!voices || !voices.length) return null;
+    if (!voices || !voices.length) return null;  // no voices loaded → browser default
 
-    const primary = langTag.toLowerCase();            // e.g. "gu-in"
-    const base    = primary.split('-')[0];            // e.g. "gu"
+    const primary = langTag.toLowerCase();   // e.g. "gu-in"
+    const base    = primary.split('-')[0];   // e.g. "gu"
 
-    // Try exact match first, then base language match
+    // Try exact match → base language match → English → null (never force an invalid voice)
     return voices.find(v => v.lang.toLowerCase() === primary)
         || voices.find(v => v.lang.toLowerCase().startsWith(base))
-        || voices.find(v => v.lang.toLowerCase().startsWith('en'))  // fallback English
-        || voices[0];                                               // last resort
+        || voices.find(v => v.lang.toLowerCase().startsWith('en'))
+        || null;  // let browser use its own built-in default — always works, never errors
   }
 
   // ── Drag & Drop ──
@@ -432,11 +433,12 @@
     try {
       const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       extractedText = isPDF ? await extractPDF(file) : await extractImage(file);
-      extractedText = extractedText.trim();
 
-      if (extractedText.length < 5) {
+      if (!extractedText || extractedText.trim().length < 5) {
         throw new Error("No readable text found. Try a clearer image.");
       }
+
+      extractedText = extractedText.trim();
 
       // ── Auto-detect language ──
       const detected = detectLanguage(extractedText);
@@ -448,7 +450,7 @@
       readBtn.disabled = false;
       copyBtn.disabled = false;
     } catch(err) {
-      setStatus('❌ ' + err.message, 'error');
+      setStatus('❌ ' + (err.message || 'Something went wrong. Try again.'), 'error');
     }
 
     hideProgress();
@@ -497,15 +499,18 @@
   async function runTesseract(file) {
     const lang = 'eng+hin+guj';
     showProgress(10, 'Scanning document…');
-    const worker = await Tesseract.createWorker(lang);
-    await worker.loadLanguage(lang);
-    await worker.initialize(lang);
-    const { data: { text } } = await worker.recognize(file, {}, {
+
+    // Tesseract.js v2: logger must go in createWorker options, not in recognize()
+    const worker = await Tesseract.createWorker({
       logger: m => {
         if (m.status === 'recognizing text')
           showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
       }
     });
+
+    await worker.loadLanguage(lang);
+    await worker.initialize(lang);
+    const { data: { text } } = await worker.recognize(file);
     await worker.terminate();
     showProgress(100, 'Done!');
     return text;
@@ -526,12 +531,14 @@
 
     const utterance = new SpeechSynthesisUtterance(extractedText);
 
-    // Auto-pick voice matching detected language
+    // Auto-pick voice matching detected language — if nothing found, don't set voice at all
+    // (no voice set = browser uses its own built-in default, which always works on every device)
     const voice = pickVoice(detectedLang);
     if (voice) {
       utterance.voice = voice;
       utterance.lang  = voice.lang;
     }
+    // If voice is null: browser handles it silently with its default — no error thrown
 
     utterance.rate   = parseFloat(rateSlider.value);
     utterance.pitch  = parseFloat(pitchSlider.value);
@@ -539,7 +546,20 @@
 
     utterance.onstart  = () => { setStatus('🎤 Reading aloud… <span class="reading-pulse">●</span>', 'success'); readBtn.disabled = true; };
     utterance.onend    = () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; };
-    utterance.onerror  = e  => { setStatus(`❌ Speech error: ${e.error}`, 'error'); readBtn.disabled = false; };
+    utterance.onerror  = e  => {
+      // If speech failed (e.g. voice not supported), retry with no voice set — always works
+      if (e.error !== 'interrupted') {
+        const retry = new SpeechSynthesisUtterance(extractedText);
+        retry.rate = parseFloat(rateSlider.value);
+        retry.pitch = parseFloat(pitchSlider.value);
+        retry.volume = 1.0;
+        retry.onend   = () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; };
+        retry.onerror = () => { setStatus('❌ Your device does not support text-to-speech.', 'error'); readBtn.disabled = false; };
+        window.speechSynthesis.speak(retry);
+      } else {
+        readBtn.disabled = false;
+      }
+    };
     utterance.onpause  = () => setStatus('⏸ Paused', 'warning');
     utterance.onresume = () => setStatus('🎤 Resumed reading…', 'success');
 
