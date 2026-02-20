@@ -450,6 +450,7 @@
       readBtn.disabled = false;
       copyBtn.disabled = false;
     } catch(err) {
+      console.error('Extraction error:', err);
       setStatus('❌ ' + (err.message || 'Something went wrong. Try again.'), 'error');
     }
 
@@ -500,20 +501,36 @@
     const lang = 'eng+hin+guj';
     showProgress(10, 'Scanning document…');
 
-    // Tesseract.js v2: logger must go in createWorker options, not in recognize()
-    const worker = await Tesseract.createWorker({
-      logger: m => {
-        if (m.status === 'recognizing text')
-          showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
-      }
-    });
+    try {
+      // Tesseract.js v2.1.5 requires: load() → loadLanguage() → initialize() → recognize()
+      const worker = Tesseract.createWorker({
+        logger: m => {
+          if (m.status === 'recognizing text')
+            showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
+        }
+      });
 
-    await worker.loadLanguage(lang);
-    await worker.initialize(lang);
-    const { data: { text } } = await worker.recognize(file);
-    await worker.terminate();
-    showProgress(100, 'Done!');
-    return text;
+      await worker.load();                  // ← required in v2, was missing
+      await worker.loadLanguage(lang);
+      await worker.initialize(lang);
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+      showProgress(100, 'Done!');
+      return text;
+
+    } catch (err) {
+      // If multi-language fails, fall back to English-only OCR
+      console.warn('Multi-lang OCR failed, trying English only:', err);
+      showProgress(10, 'Retrying with English OCR…');
+      const worker2 = Tesseract.createWorker();
+      await worker2.load();
+      await worker2.loadLanguage('eng');
+      await worker2.initialize('eng');
+      const { data: { text } } = await worker2.recognize(file);
+      await worker2.terminate();
+      showProgress(100, 'Done!');
+      return text;
+    }
   }
 
   // ── Copy (hidden) ──
