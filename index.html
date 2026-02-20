@@ -1,275 +1,609 @@
 <!DOCTYPE html>
-<html lang="gu">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sdesaireader - Gujarati Only</title>
+  <title>Sdesaireader — Universal Document Reader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --ink: #1a1a2e;
+      --paper: #f5f0e8;
+      --accent: #c0392b;
+      --accent2: #e67e22;
+      --muted: #8c8070;
+      --card: #fffdf8;
+      --border: #ddd5c5;
+      --green: #27ae60;
+      --radius: 12px;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
       min-height: 100vh;
-      padding: 20px;
-      color: #333;
+      color: var(--ink);
+      background-image: 
+        radial-gradient(ellipse at 10% 10%, rgba(192,57,43,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 90% 90%, rgba(230,126,34,0.06) 0%, transparent 60%);
     }
-    .container { 
-      max-width: 500px; 
-      margin: 0 auto; 
-      background: white; 
-      border-radius: 20px; 
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+
+    .wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    header h1 em {
+      color: var(--accent);
+      font-style: italic;
+    }
+    header p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 300;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
       overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .header { 
-      background: #2c3e50; 
-      color: white; 
-      padding: 20px; 
-      text-align: center; 
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .upload-area { 
-      border: 3px dashed #3498db; 
-      padding: 40px 20px; 
-      margin: 20px; 
-      border-radius: 15px; 
-      cursor: pointer; 
-      background: #f8f9fa;
-      transition: all 0.3s;
+    .card-body { padding: 20px; }
+
+    /* ── UPLOAD ZONE ── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 48px 20px;
       text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
     }
-    .upload-area:hover { background: #e3f2fd; }
-    button { 
-      width: 100%; 
-      padding: 15px; 
-      margin: 10px 20px; 
-      border: none; 
-      border-radius: 10px; 
-      font-size: 16px; 
-      font-weight: bold; 
-      cursor: pointer; 
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(192,57,43,0.03);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+    .drop-label { font-size: 1rem; font-weight: 500; color: var(--ink); }
+    .drop-sub { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+    .file-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--ink); color: white; border-radius: 999px;
+      padding: 6px 16px; font-size: 0.85rem; margin-top: 12px;
+    }
+
+    /* ── LANGUAGE SELECT ── */
+    .lang-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .lang-row {
+      display: flex; gap: 10px; align-items: center;
+    }
+    label.field-label {
+      font-size: 0.8rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      display: block; margin-bottom: 6px;
+    }
+    select, .select-wrap select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238c8070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 24px; border: none; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; width: 100%;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--ink); color: white; }
+    .btn-primary:not(:disabled):hover { background: #2c2c50; transform: translateY(-1px); }
+    .btn-green { background: var(--green); color: white; }
+    .btn-green:not(:disabled):hover { background: #219a52; transform: translateY(-1px); }
+    .btn-red { background: var(--accent); color: white; }
+    .btn-red:not(:disabled):hover { background: #a93226; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--ink); border: 1.5px solid var(--border); }
+    .btn-outline:not(:disabled):hover { border-color: var(--ink); }
+
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn { flex: 1; }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
       transition: all 0.3s;
+      background: #e8f4fd;
+      color: #1a5276;
     }
-    .extract-btn { background: #3498db; color: white; }
-    .extract-btn:disabled { background: #bdc3c7; }
-    .read-btn { background: #27ae60; color: white; }
-    .read-btn:disabled { background: #bdc3c7; }
-    .stop-btn { background: #e74c3c; color: white; }
-    #output { 
-      min-height: 150px; 
-      padding: 20px; 
-      margin: 0 20px 20px 20px; 
-      background: #f8f9fa; 
-      border-radius: 10px; 
-      border: 1px solid #dee2e6;
+    .status-bar.success { background: #eafaf1; color: #1e8449; }
+    .status-bar.error { background: #fdf2f2; color: #922b21; }
+    .status-bar.warning { background: #fefce8; color: #7d6608; }
+
+    /* ── OUTPUT ── */
+    #output {
+      min-height: 160px;
+      max-height: 380px;
+      overflow-y: auto;
+      font-size: 1rem;
+      line-height: 1.75;
+      color: var(--ink);
       white-space: pre-wrap;
-      font-size: 16px;
-      line-height: 1.6;
-      text-align: left;
+      word-break: break-word;
     }
-    .status { 
-      padding: 15px; 
-      text-align: center; 
-      font-weight: bold; 
-      font-size: 16px;
-      background: #d4edda;
-      color: #155724;
-      border-bottom: 1px solid #c3e6cb;
+    #output.placeholder { color: var(--muted); font-style: italic; }
+
+    /* ── PROGRESS ── */
+    .progress-wrap { display: none; margin-top: 12px; }
+    .progress-bar {
+      height: 4px; background: var(--border); border-radius: 99px; overflow: hidden;
     }
-    .error { 
-      background: #f8d7da !important; 
-      color: #721c24 !important; 
-      border-bottom-color: #f5c6cb !important;
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px; width: 0%; transition: width 0.3s;
     }
-    .voice-info { 
-      background: #d1ecf1; 
-      color: #0c5460; 
-      padding: 10px; 
-      font-size: 14px; 
-      text-align: center;
-      display: none;
+    .progress-label { font-size: 0.78rem; color: var(--muted); margin-top: 5px; }
+
+    /* ── VOICE CONTROLS ── */
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    .slider-row label { font-size: 0.82rem; color: var(--muted); white-space: nowrap; min-width: 50px; }
+    input[type=range] {
+      flex: 1; accent-color: var(--accent); cursor: pointer;
     }
-    .voice-missing { 
-      background: #fff3cd !important; 
-      color: #856404 !important; 
-      display: block !important;
-    }
+    .slider-val { font-size: 0.82rem; font-weight: 600; min-width: 30px; text-align: right; }
+
+    /* ── PULSE ── */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .reading-pulse { animation: pulse 1.5s infinite; }
+
+    /* ── SCROLLBAR ── */
+    #output::-webkit-scrollbar { width: 6px; }
+    #output::-webkit-scrollbar-track { background: transparent; }
+    #output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>📖 Sdesaireader</h1>
-      <p>Read Gujarati text aloud</p>
+<div class="wrapper">
+
+  <header>
+    <h1>Sdesai<em>reader</em></h1>
+    <p>Upload any image or PDF — text extracts automatically & reads aloud</p>
+  </header>
+
+  <!-- STEP 1: Upload -->
+  <div class="card">
+    <div class="card-header">① Upload File — extracts automatically</div>
+    <div class="card-body">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tiff" />
+        <span class="drop-icon">📄</span>
+        <div class="drop-label">Tap to upload or drag & drop</div>
+        <div class="drop-sub">Images (JPG, PNG, WEBP) · PDF</div>
+        <div id="filePill" style="display:none">
+          <span class="file-pill"><span>📎</span><span id="fileName"></span></span>
+        </div>
+      </div>
     </div>
-
-    <div class="voice-info" id="voiceInfo">
-      ✅ Gujarati voice ready! Ready to read.
-    </div>
-
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-      <p id="uploadText">📁 Tap to upload image or PDF</p>
-      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
-    </div>
-
-    <div class="status" id="status">Ready to start</div>
-
-    <button class="extract-btn" id="extractBtn" disabled>🔍 Extract Text</button>
-    <button class="read-btn" id="readBtn" disabled>🗣️ Read in Gujarati</button>
-    <button class="stop-btn" id="stopBtn">⏹️ Stop</button>
-
-    <div id="output">Your extracted text will appear here...</div>
   </div>
 
-  <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+  <!-- STEP 2: Language for OCR -->
+  <div class="card">
+    <div class="card-header">② OCR Language (for images)</div>
+    <div class="card-body">
+      <label class="field-label">Select the language in the document</label>
+      <select id="ocrLang">
+        <option value="eng">English</option>
+        <option value="guj">Gujarati (ગુજરાતી)</option>
+        <option value="hin">Hindi (हिन्दी)</option>
+        <option value="eng+guj">English + Gujarati</option>
+        <option value="eng+hin">English + Hindi</option>
+        <option value="spa">Spanish</option>
+        <option value="fra">French</option>
+        <option value="deu">German</option>
+        <option value="por">Portuguese</option>
+        <option value="ita">Italian</option>
+        <option value="rus">Russian</option>
+        <option value="ara">Arabic</option>
+        <option value="chi_sim">Chinese (Simplified)</option>
+        <option value="jpn">Japanese</option>
+        <option value="kor">Korean</option>
+      </select>
+      <div style="margin-top:10px;font-size:0.8rem;color:var(--muted)">
+        ℹ️ For PDFs with embedded text, language selection is not needed — text is extracted directly.
+      </div>
+    </div>
+  </div>
 
-  <script>
-    const fileInput = document.getElementById('fileInput');
-    const extractBtn = document.getElementById('extractBtn');
-    const readBtn = document.getElementById('readBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const status = document.getElementById('status');
-    const output = document.getElementById('output');
-    const voiceInfo = document.getElementById('voiceInfo');
+  <!-- STEP 3: Extract -->
+  <div class="card">
+    <div class="card-header">③ Re-extract (if you change language)</div>
+    <div class="card-body">
+      <button class="btn btn-primary" id="extractBtn" disabled>🔍 Extract Text</button>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">Starting…</div>
+      </div>
+    </div>
+  </div>
 
-    let extractedText = "";
-    let hasGujaratiVoice = false;
+  <!-- STATUS -->
+  <div class="status-bar" id="statusBar">
+    📋 Upload a file to get started
+  </div>
+  <div style="height:16px"></div>
 
-    // Check for Gujarati voice
-    function checkGujaratiVoice() {
-      const voices = window.speechSynthesis.getVoices();
-      hasGujaratiVoice = voices.some(voice => 
-        voice.lang.toLowerCase().includes('gu') || 
-        voice.name.toLowerCase().includes('gujarati')
-      );
-      
-      if (hasGujaratiVoice) {
-        voiceInfo.className = "voice-info";
-        voiceInfo.innerHTML = "✅ <strong>Gujarati voice found!</strong> Ready to read.";
+  <!-- OUTPUT -->
+  <div class="card">
+    <div class="card-header" style="justify-content:space-between">
+      <span>Extracted Text</span>
+      <button class="btn btn-outline" id="copyBtn" style="width:auto;padding:4px 14px;font-size:0.78rem" disabled>Copy</button>
+    </div>
+    <div class="card-body">
+      <div id="output" class="placeholder">Your extracted text will appear here…</div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Read Aloud -->
+  <div class="card">
+    <div class="card-header">④ Read Aloud</div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+
+      <div>
+        <label class="field-label">Voice / Language</label>
+        <select id="voiceSelect">
+          <option value="">— Loading voices… —</option>
+        </select>
+      </div>
+
+      <div class="slider-row">
+        <label>Speed</label>
+        <input type="range" id="rateSlider" min="0.5" max="2" step="0.05" value="0.9">
+        <span class="slider-val" id="rateVal">0.9×</span>
+      </div>
+      <div class="slider-row">
+        <label>Pitch</label>
+        <input type="range" id="pitchSlider" min="0.5" max="2" step="0.05" value="1">
+        <span class="slider-val" id="pitchVal">1.0</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-green" id="readBtn" disabled>🔊 Read Aloud</button>
+        <button class="btn btn-red" id="stopBtn">⏹ Stop</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- Tesseract -->
+<script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+
+<script>
+  // ── DOM refs ──
+  const fileInput   = document.getElementById('fileInput');
+  const dropZone    = document.getElementById('dropZone');
+  const extractBtn  = document.getElementById('extractBtn');
+  const readBtn     = document.getElementById('readBtn');
+  const stopBtn     = document.getElementById('stopBtn');
+  const copyBtn     = document.getElementById('copyBtn');
+  const statusBar   = document.getElementById('statusBar');
+  const output      = document.getElementById('output');
+  const voiceSelect = document.getElementById('voiceSelect');
+  const ocrLang     = document.getElementById('ocrLang');
+  const rateSlider  = document.getElementById('rateSlider');
+  const pitchSlider = document.getElementById('pitchSlider');
+  const rateVal     = document.getElementById('rateVal');
+  const pitchVal    = document.getElementById('pitchVal');
+  const progressWrap= document.getElementById('progressWrap');
+  const progressFill= document.getElementById('progressFill');
+  const progressLabel=document.getElementById('progressLabel');
+  const filePill    = document.getElementById('filePill');
+  const fileNameEl  = document.getElementById('fileName');
+
+  // PDF.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  let extractedText = "";
+
+  // ── Sliders ──
+  rateSlider.oninput  = () => rateVal.textContent  = parseFloat(rateSlider.value).toFixed(2) + '×';
+  pitchSlider.oninput = () => pitchVal.textContent = parseFloat(pitchSlider.value).toFixed(2);
+
+  // ── Voices ──
+  function loadVoices() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return;
+    voiceSelect.innerHTML = '';
+    // Sort: put common languages up top
+    const priority = ['en-US','en-GB','gu-IN','hi-IN'];
+    const sorted = [...voices].sort((a,b) => {
+      const ai = priority.indexOf(a.lang), bi = priority.indexOf(b.lang);
+      if (ai !== -1 && bi === -1) return -1;
+      if (bi !== -1 && ai === -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    sorted.forEach((v, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${v.name} (${v.lang})`;
+      opt.dataset.idx = voices.indexOf(v);
+      voiceSelect.appendChild(opt);
+    });
+    // Pre-select English if available
+    const englishIdx = sorted.findIndex(v => v.lang.startsWith('en'));
+    if (englishIdx >= 0) voiceSelect.selectedIndex = englishIdx;
+    window._voices = voices;
+    window._sortedVoices = sorted;
+  }
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  if (window.speechSynthesis.getVoices().length) loadVoices();
+  setTimeout(loadVoices, 500);
+
+  // ── Drag & Drop ──
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      const dt = new DataTransfer();
+      dt.items.add(e.dataTransfer.files[0]);
+      fileInput.files = dt.files;
+      setFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.onchange = () => { if (fileInput.files.length) setFile(fileInput.files[0]); };
+
+  function setFile(f) {
+    fileNameEl.textContent = f.name.length > 32 ? f.name.slice(0,30)+'…' : f.name;
+    filePill.style.display = 'block';
+    extractBtn.disabled = false;
+    // Auto-extract immediately
+    doExtract(f);
+  }
+
+  // ── Status ──
+  function setStatus(msg, type='info') {
+    statusBar.className = 'status-bar' + (type==='success'?' success':type==='error'?' error':type==='warning'?' warning':'');
+    statusBar.innerHTML = msg;
+  }
+
+  // ── Progress ──
+  function showProgress(pct, label) {
+    progressWrap.style.display = 'block';
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = label;
+  }
+  function hideProgress() { progressWrap.style.display = 'none'; }
+
+  // ── Extract button (manual re-extract with different language) ──
+  extractBtn.onclick = async function() {
+    const file = fileInput.files[0];
+    if (file) doExtract(file);
+  };
+
+  // ── Core extract logic ──
+  async function doExtract(file) {
+    extractBtn.disabled = true;
+    readBtn.disabled = true;
+    copyBtn.disabled = true;
+    output.className = 'placeholder';
+    output.textContent = 'Extracting…';
+    showProgress(5, 'Starting extraction…');
+    setStatus('⏳ Extracting text…', 'info');
+    extractedText = "";
+
+    try {
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+      if (isPDF) {
+        extractedText = await extractPDF(file);
       } else {
-        voiceInfo.className = "voice-info voice-missing";
-        voiceInfo.innerHTML = `
-          ⚠️ <strong>Gujarati voice missing!</strong><br>
-          <small>
-            <strong>iPhone:</strong> Settings → Accessibility → Spoken Content → Voices → Gujarati → Download<br>
-            <strong>Android:</strong> Settings → Google → Voice → Text-to-speech → Install voice data (Gujarati)
-          </small>
-        `;
+        extractedText = await extractImage(file);
       }
+
+      extractedText = extractedText.trim();
+
+      if (extractedText.length < 5) {
+        throw new Error("No readable text found. Try a clearer image or different language setting.");
+      }
+
+      output.className = '';
+      output.textContent = extractedText;
+      setStatus(`✅ Extracted ${extractedText.length.toLocaleString()} characters`, 'success');
+      readBtn.disabled = false;
+      copyBtn.disabled = false;
+    } catch(err) {
+      output.className = 'placeholder';
+      output.textContent = '';
+      setStatus('❌ ' + err.message, 'error');
     }
 
-    // Load voices when available
-    if (window.speechSynthesis.getVoices().length > 0) {
-      checkGujaratiVoice();
-    } else {
-      window.speechSynthesis.onvoiceschanged = checkGujaratiVoice;
-      // Force load
-      setTimeout(() => window.speechSynthesis.getVoices(), 100);
+    hideProgress();
+    extractBtn.disabled = false;
+  }  // end doExtract
+
+  // ── PDF extraction ──
+  async function extractPDF(file) {
+    showProgress(10, 'Loading PDF…');
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const totalPages = pdf.numPages;
+    let fullText = "";
+
+    for (let i = 1; i <= totalPages; i++) {
+      showProgress(10 + (i / totalPages) * 85, `Reading page ${i} of ${totalPages}…`);
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(item => item.str).join(' ');
+      fullText += pageText + '\n';
     }
 
-    // File upload
-    fileInput.onchange = function() {
-      if (this.files.length > 0) {
-        status.textContent = "File selected! Click Extract.";
-        extractBtn.disabled = false;
-        document.getElementById('uploadText').textContent = this.files[0].name;
-      }
-    };
+    showProgress(100, 'Done!');
 
-    // Extract text
-    extractBtn.onclick = async function() {
-      status.textContent = "Extracting text...";
-      extractBtn.disabled = true;
-      
-      try {
-        const worker = await Tesseract.createWorker('eng+hin+guj');
-        await worker.loadLanguage('eng+hin+guj');
-        await worker.initialize('eng+hin+guj');
-        const { data: { text } } = await worker.recognize(fileInput.files[0]);
-        await worker.terminate();
+    // If PDF had no embedded text, try OCR on first page
+    if (fullText.trim().length < 20) {
+      showProgress(50, 'No embedded text — running OCR on PDF…');
+      fullText = await ocrPDFPage(file);
+    }
 
-        // Clean Gujarati text: keep only Gujarati characters, spaces, and basic punctuation
-        extractedText = text
-          .replace(/[^\u0A80-\u0AFF\u0020\u002C\u002E\u003F\u003A]/g, '') // Keep Gujarati + space, comma, dot, ?, :
-          .replace(/\s+/g, ' ')
-          .trim();
+    return fullText;
+  }
 
-        output.textContent = extractedText || "No Gujarati text found.";
-        
-        if (extractedText.length > 5) {
-          status.textContent = `Gujarati text extracted! (${extractedText.length} chars)`;
-          readBtn.disabled = false;
-        } else {
-          status.className = "status error";
-          status.textContent = "No clear Gujarati text found. Try a clearer image.";
-          readBtn.disabled = true;
+  async function ocrPDFPage(file) {
+    // Render first page to canvas, then OCR
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    return await runTesseract(blob);
+  }
+
+  // ── Image OCR ──
+  async function extractImage(file) {
+    return await runTesseract(file);
+  }
+
+  async function runTesseract(file) {
+    const lang = ocrLang.value;
+    showProgress(10, `Initializing OCR (${lang})…`);
+    const worker = await Tesseract.createWorker(lang);
+    await worker.loadLanguage(lang);
+    await worker.initialize(lang);
+
+    // Progress via logger is v2 style
+    const { data: { text } } = await worker.recognize(file, {}, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          showProgress(15 + m.progress * 80, `OCR: ${Math.round(m.progress * 100)}%`);
         }
-      } catch (error) {
-        status.className = "status error";
-        status.textContent = "Error extracting text. Try again.";
-        console.error(error);
       }
-      
-      extractBtn.disabled = false;
+    });
+
+    await worker.terminate();
+    showProgress(100, 'OCR complete!');
+    return text;
+  }
+
+  // ── Copy ──
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(extractedText).then(() => {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => copyBtn.textContent = 'Copy', 2000);
+    });
+  };
+
+  // ── Read Aloud ──
+  readBtn.onclick = function() {
+    if (!extractedText || extractedText.length < 5) return;
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(extractedText);
+
+    // Apply selected voice if available — otherwise browser uses device default automatically
+    if (window._sortedVoices && voiceSelect.selectedIndex >= 0) {
+      const selected = window._sortedVoices[voiceSelect.selectedIndex];
+      if (selected) {
+        utterance.voice = selected;
+        utterance.lang  = selected.lang;
+      }
+    }
+    // If no voices loaded at all, don't set voice — browser will use its built-in default
+    // This ensures it always reads on any device, including those with limited voice packs
+
+    utterance.rate   = parseFloat(rateSlider.value);
+    utterance.pitch  = parseFloat(pitchSlider.value);
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => {
+      setStatus('🎤 Reading aloud… <span class="reading-pulse">●</span>', 'success');
+      readBtn.disabled = true;
     };
-
-    // Read in Gujarati only
-    readBtn.onclick = function() {
-      if (!hasGujaratiVoice) {
-        status.className = "status error";
-        status.textContent = "Gujarati voice required! Please install it first.";
-        return;
-      }
-
-      if (!extractedText || extractedText.length < 5) {
-        status.className = "status error";
-        status.textContent = "No Gujarati text to read.";
-        return;
-      }
-
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(extractedText);
-      
-      // Force Gujarati voice only
-      const gujVoice = window.speechSynthesis.getVoices().find(voice => 
-        voice.lang.toLowerCase().includes('gu') || 
-        voice.name.toLowerCase().includes('gujarati')
-      );
-
-      if (gujVoice) {
-        utterance.voice = gujVoice;
-        utterance.lang = 'gu-IN';
-      }
-
-      utterance.rate = 0.85; // Slightly slower for clarity
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-
-      utterance.onstart = function() {
-        status.textContent = "Reading in Gujarati... 🎤";
-        readBtn.disabled = true;
-      };
-
-      utterance.onend = function() {
-        status.textContent = "Finished reading! ✅";
-        readBtn.disabled = false;
-      };
-
-      utterance.onerror = function(event) {
-        status.className = "status error";
-        status.textContent = `Error: ${event.error}. Check voice settings.`;
-        readBtn.disabled = false;
-      };
-
-      window.speechSynthesis.speak(utterance);
-    };
-
-    // Stop
-    stopBtn.onclick = function() {
-      window.speechSynthesis.cancel();
-      status.textContent = "Stopped. Ready to read again.";
+    utterance.onend = () => {
+      setStatus('✅ Finished reading!', 'success');
       readBtn.disabled = false;
     };
-  </script>
+    utterance.onerror = e => {
+      setStatus(`❌ Speech error: ${e.error}`, 'error');
+      readBtn.disabled = false;
+    };
+    utterance.onpause = () => setStatus('⏸ Paused', 'warning');
+    utterance.onresume= () => setStatus('🎤 Resumed reading…', 'success');
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // ── Stop ──
+  stopBtn.onclick = function() {
+    window.speechSynthesis.cancel();
+    setStatus('⏹ Stopped.', 'info');
+    readBtn.disabled = extractedText.length < 5;
+  };
+</script>
 </body>
 </html>
