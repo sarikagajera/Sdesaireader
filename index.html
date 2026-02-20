@@ -431,7 +431,7 @@
     extractedText = "";
 
     try {
-      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isPDF = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
       extractedText = isPDF ? await extractPDF(file) : await extractImage(file);
 
       if (!extractedText || extractedText.trim().length < 5) {
@@ -503,7 +503,7 @@
 
     try {
       // Tesseract.js v2.1.5 requires: load() → loadLanguage() → initialize() → recognize()
-      const worker = Tesseract.createWorker({
+      const worker = await Tesseract.createWorker({
         logger: m => {
           if (m.status === 'recognizing text')
             showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
@@ -522,7 +522,7 @@
       // If multi-language fails, fall back to English-only OCR
       console.warn('Multi-lang OCR failed, trying English only:', err);
       showProgress(10, 'Retrying with English OCR…');
-      const worker2 = Tesseract.createWorker();
+      const worker2 = await Tesseract.createWorker();
       await worker2.load();
       await worker2.loadLanguage('eng');
       await worker2.initialize('eng');
