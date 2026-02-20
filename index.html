@@ -221,7 +221,7 @@
 
   <header>
     <h1>Sdesai<em>reader</em></h1>
-    <p>Upload any image or PDF — text extracts automatically & reads aloud</p>
+    <p>Upload any image or PDF — text extracts automatically & reads aloud-1</p>
   </header>
 
   <!-- STEP 1: Upload -->
@@ -489,49 +489,91 @@
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement('canvas');
-    canvas.width = viewport.width; canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    return await runTesseract(blob);
+    // Use toDataURL directly — avoids blob + FileReader chain on mobile
+    const dataURL = canvas.toDataURL('image/png');
+    return await runTesseractFromURL(dataURL);
+  }
+
+  // Separate entry point that skips the FileReader step (already a data URL)
+  async function runTesseractFromURL(dataURL) {
+    const attempts = [
+      { lang: 'eng+hin+guj', label: 'Scanning document…' },
+      { lang: 'eng',         label: 'Retrying (English)…' },
+    ];
+    for (const attempt of attempts) {
+      try {
+        showProgress(12, attempt.label);
+        const worker = await Tesseract.createWorker({
+          logger: m => {
+            if (m.status === 'recognizing text')
+              showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
+          }
+        });
+        await worker.load();
+        await worker.loadLanguage(attempt.lang);
+        await worker.initialize(attempt.lang);
+        const { data: { text } } = await worker.recognize(dataURL);
+        await worker.terminate();
+        showProgress(100, 'Done!');
+        return text;
+      } catch (err) {
+        console.warn(`OCR attempt (${attempt.lang}) failed:`, err);
+      }
+    }
+    throw new Error('OCR failed. Please try a clearer image.');
   }
 
   async function extractImage(file) { return await runTesseract(file); }
 
+  // Convert any file/blob to a base64 data URL so Tesseract never touches .name
+  function toDataURL(fileOrBlob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.readAsDataURL(fileOrBlob);
+    });
+  }
+
   // Always use broad multi-language OCR — let auto-detection handle the rest
-  async function runTesseract(file) {
-    const lang = 'eng+hin+guj';
+  async function runTesseract(fileOrBlob) {
     showProgress(10, 'Scanning document…');
 
-    try {
-      // Tesseract.js v2.1.5 requires: load() → loadLanguage() → initialize() → recognize()
-      const worker = await Tesseract.createWorker({
-        logger: m => {
-          if (m.status === 'recognizing text')
-            showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
-        }
-      });
+    // Convert to data URL first — this avoids Tesseract crashing on missing .name/.type
+    const dataURL = await toDataURL(fileOrBlob);
 
-      await worker.load();                  // ← required in v2, was missing
-      await worker.loadLanguage(lang);
-      await worker.initialize(lang);
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-      showProgress(100, 'Done!');
-      return text;
+    // Try multi-language first, fall back to English only
+    const attempts = [
+      { lang: 'eng+hin+guj', label: 'Scanning document…' },
+      { lang: 'eng',         label: 'Retrying (English)…' },
+    ];
 
-    } catch (err) {
-      // If multi-language fails, fall back to English-only OCR
-      console.warn('Multi-lang OCR failed, trying English only:', err);
-      showProgress(10, 'Retrying with English OCR…');
-      const worker2 = await Tesseract.createWorker();
-      await worker2.load();
-      await worker2.loadLanguage('eng');
-      await worker2.initialize('eng');
-      const { data: { text } } = await worker2.recognize(file);
-      await worker2.terminate();
-      showProgress(100, 'Done!');
-      return text;
+    for (const attempt of attempts) {
+      try {
+        showProgress(12, attempt.label);
+        const worker = await Tesseract.createWorker({
+          logger: m => {
+            if (m.status === 'recognizing text')
+              showProgress(15 + m.progress * 80, `Scanning: ${Math.round(m.progress * 100)}%`);
+          }
+        });
+        await worker.load();
+        await worker.loadLanguage(attempt.lang);
+        await worker.initialize(attempt.lang);
+        const { data: { text } } = await worker.recognize(dataURL);
+        await worker.terminate();
+        showProgress(100, 'Done!');
+        return text;
+      } catch (err) {
+        console.warn(`OCR attempt (${attempt.lang}) failed:`, err);
+        // try next attempt
+      }
     }
+
+    throw new Error('OCR failed. Please try a clearer image.');
   }
 
   // ── Copy (hidden) ──
