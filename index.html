@@ -221,7 +221,7 @@
 
   <header>
     <h1>Sdesai<em>reader</em></h1>
-    <p>Upload any image or PDF — text extracts automatically & reads aloud-1</p>
+    <p>Upload any image or PDF — text extracts automatically & reads aloud</p>
   </header>
 
   <!-- STEP 1: Upload -->
@@ -447,7 +447,7 @@
       langName.textContent = detected.name;
       langBadge.style.display = 'block';
 
-      setStatus(`✅ Ready to read — detected ${detected.name}`, 'success');
+      setStatus(`✅ Ready — detected <strong>${detected.name}</strong>. Tap Read Aloud.`, 'success');
       readBtn.disabled = false;
       copyBtn.disabled = false;
     } catch(err) {
@@ -591,20 +591,19 @@
 
     const utterance = new SpeechSynthesisUtterance(extractedText);
 
-    // Auto-pick voice matching detected language — if nothing found, don't set voice at all
-    // (no voice set = browser uses its own built-in default, which always works on every device)
+    // ALWAYS set the language — this tells the device TTS engine which language to use
+    // even if no named voice is installed. Most phones have built-in multi-language TTS.
+    utterance.lang = detectedLang;  // e.g. "gu-IN", "hi-IN", "en-US"
+
+    // Then also try to assign a specific voice if one matches — but lang alone is enough
     const voice = pickVoice(detectedLang);
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang  = voice.lang;
-    }
-    // If voice is null: browser handles it silently with its default — no error thrown
+    if (voice) utterance.voice = voice;
 
     utterance.rate   = parseFloat(rateSlider.value);
     utterance.pitch  = parseFloat(pitchSlider.value);
     utterance.volume = 1.0;
 
-    utterance.onstart  = () => { setStatus('🎤 Reading aloud… <span class="reading-pulse">●</span>', 'success'); readBtn.disabled = true; };
+    utterance.onstart  = () => { setStatus(`🎤 Reading in <strong>${langName.textContent}</strong>… <span class="reading-pulse">●</span>`, 'success'); readBtn.disabled = true; };
     utterance.onend    = () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; };
     utterance.onerror  = e  => {
       // If speech failed (e.g. voice not supported), retry with no voice set — always works
