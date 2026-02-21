@@ -221,7 +221,7 @@
 
   <header>
     <h1>Sdesai<em>reader</em></h1>
-    <p>Upload any image or PDF — text extracts automatically & reads aloud</p>
+    <p>Upload any image or PDF — text extracts automatically & reads aloud11</p>
   </header>
 
   <!-- STEP 1: Upload -->
@@ -289,8 +289,10 @@
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<!-- Tesseract -->
+<!-- Tesseract OCR -->
 <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
+<!-- ResponsiveVoice — has real Gujarati, Hindi, English etc built in, no install needed -->
+<script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
 
 <script>
   // ── DOM refs ──
@@ -320,62 +322,32 @@
   const langName   = document.getElementById('langName');
 
   let extractedText = "";
-  let detectedLang  = 'en';   // BCP-47 tag used for voice matching
+  let detectedVoice = 'UK English Female'; // ResponsiveVoice voice name
 
   // ── Sliders ──
   rateSlider.oninput  = () => rateVal.textContent  = parseFloat(rateSlider.value).toFixed(2) + '×';
   pitchSlider.oninput = () => pitchVal.textContent = parseFloat(pitchSlider.value).toFixed(2);
 
-  // ── Voices ──
-  function loadVoices() {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return;
-    window._voices = voices;
-  }
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-  if (window.speechSynthesis.getVoices().length) loadVoices();
-  setTimeout(loadVoices, 500);
 
   // ── Detect language from text using Unicode script ranges ──
   function detectLanguage(text) {
-    const counts = {};
     const scripts = [
-      { name: 'Gujarati',   lang: 'gu-IN', tess: 'guj',     re: /[\u0A80-\u0AFF]/g },
-      { name: 'Hindi',      lang: 'hi-IN', tess: 'hin',     re: /[\u0900-\u097F]/g },
-      { name: 'Arabic',     lang: 'ar-SA', tess: 'ara',     re: /[\u0600-\u06FF]/g },
-      { name: 'Russian',    lang: 'ru-RU', tess: 'rus',     re: /[\u0400-\u04FF]/g },
-      { name: 'Chinese',    lang: 'zh-CN', tess: 'chi_sim', re: /[\u4E00-\u9FFF]/g },
-      { name: 'Japanese',   lang: 'ja-JP', tess: 'jpn',     re: /[\u3040-\u30FF]/g },
-      { name: 'Korean',     lang: 'ko-KR', tess: 'kor',     re: /[\uAC00-\uD7AF]/g },
-      { name: 'English',    lang: 'en-US', tess: 'eng',     re: /[A-Za-z]/g },
+      { name: 'Gujarati', voice: 'Gujarati Female',   re: /[\u0A80-\u0AFF]/g },
+      { name: 'Hindi',    voice: 'Hindi Female',      re: /[\u0900-\u097F]/g },
+      { name: 'Arabic',   voice: 'Arabic Female',     re: /[\u0600-\u06FF]/g },
+      { name: 'Russian',  voice: 'Russian Female',    re: /[\u0400-\u04FF]/g },
+      { name: 'Chinese',  voice: 'Chinese Female',    re: /[\u4E00-\u9FFF]/g },
+      { name: 'Japanese', voice: 'Japanese Female',   re: /[\u3040-\u30FF]/g },
+      { name: 'Korean',   voice: 'Korean Female',     re: /[\uAC00-\uD7AF]/g },
+      { name: 'English',  voice: 'UK English Female', re: /[A-Za-z]/g },
     ];
-
-    let best = scripts[scripts.length - 1]; // default English
+    let best = scripts[scripts.length - 1];
     let bestCount = 0;
-
     for (const s of scripts) {
-      const m = text.match(s.re);
-      const count = m ? m.length : 0;
-      counts[s.name] = count;
+      const count = (text.match(s.re) || []).length;
       if (count > bestCount) { bestCount = count; best = s; }
     }
     return best;
-  }
-
-  // ── Pick best voice for detected language ──
-  // Returns null intentionally if nothing matches — null means "use browser default", which always works
-  function pickVoice(langTag) {
-    const voices = window._voices || window.speechSynthesis.getVoices();
-    if (!voices || !voices.length) return null;  // no voices loaded → browser default
-
-    const primary = langTag.toLowerCase();   // e.g. "gu-in"
-    const base    = primary.split('-')[0];   // e.g. "gu"
-
-    // Try exact match → base language match → English → null (never force an invalid voice)
-    return voices.find(v => v.lang.toLowerCase() === primary)
-        || voices.find(v => v.lang.toLowerCase().startsWith(base))
-        || voices.find(v => v.lang.toLowerCase().startsWith('en'))
-        || null;  // let browser use its own built-in default — always works, never errors
   }
 
   // ── Drag & Drop ──
@@ -443,7 +415,7 @@
 
       // ── Auto-detect language ──
       const detected = detectLanguage(extractedText);
-      detectedLang = detected.lang;
+      detectedVoice = detected.voice;
       langName.textContent = detected.name;
       langBadge.style.display = 'block';
 
@@ -584,52 +556,28 @@
     });
   };
 
-  // ── Read Aloud ──
+  // ── Read Aloud using ResponsiveVoice (has Gujarati, Hindi, etc built in) ──
   readBtn.onclick = function() {
     if (!extractedText || extractedText.length < 5) return;
-    window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(extractedText);
+    responsiveVoice.cancel();
+    setStatus(`🎤 Reading in <strong>${langName.textContent}</strong>… <span class="reading-pulse">●</span>`, 'success');
+    readBtn.disabled = true;
 
-    // ALWAYS set the language — this tells the device TTS engine which language to use
-    // even if no named voice is installed. Most phones have built-in multi-language TTS.
-    utterance.lang = detectedLang;  // e.g. "gu-IN", "hi-IN", "en-US"
-
-    // Then also try to assign a specific voice if one matches — but lang alone is enough
-    const voice = pickVoice(detectedLang);
-    if (voice) utterance.voice = voice;
-
-    utterance.rate   = parseFloat(rateSlider.value);
-    utterance.pitch  = parseFloat(pitchSlider.value);
-    utterance.volume = 1.0;
-
-    utterance.onstart  = () => { setStatus(`🎤 Reading in <strong>${langName.textContent}</strong>… <span class="reading-pulse">●</span>`, 'success'); readBtn.disabled = true; };
-    utterance.onend    = () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; };
-    utterance.onerror  = e  => {
-      // If speech failed (e.g. voice not supported), retry with no voice set — always works
-      if (e.error !== 'interrupted') {
-        const retry = new SpeechSynthesisUtterance(extractedText);
-        retry.rate = parseFloat(rateSlider.value);
-        retry.pitch = parseFloat(pitchSlider.value);
-        retry.volume = 1.0;
-        retry.onend   = () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; };
-        retry.onerror = () => { setStatus('❌ Your device does not support text-to-speech.', 'error'); readBtn.disabled = false; };
-        window.speechSynthesis.speak(retry);
-      } else {
-        readBtn.disabled = false;
-      }
-    };
-    utterance.onpause  = () => setStatus('⏸ Paused', 'warning');
-    utterance.onresume = () => setStatus('🎤 Resumed reading…', 'success');
-
-    window.speechSynthesis.speak(utterance);
+    responsiveVoice.speak(extractedText, detectedVoice, {
+      rate:   parseFloat(rateSlider.value),
+      pitch:  parseFloat(pitchSlider.value),
+      volume: 1,
+      onend:  () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; },
+      onerror:() => { setStatus('❌ Could not read. Check your internet connection.', 'error'); readBtn.disabled = false; }
+    });
   };
 
   // ── Stop ──
   stopBtn.onclick = function() {
-    window.speechSynthesis.cancel();
+    responsiveVoice.cancel();
     setStatus('⏹ Stopped.', 'info');
-    readBtn.disabled = extractedText.length < 5;
+    readBtn.disabled = !extractedText || extractedText.length < 5;
   };
 </script>
 </body>
