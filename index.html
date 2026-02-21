@@ -221,7 +221,7 @@
 
   <header>
     <h1>Sdesai<em>reader</em></h1>
-    <p>Upload any image or PDF — text extracts automatically & reads aloud11</p>
+    <p>Upload any image or PDF — text extracts automatically & reads aloud</p>
   </header>
 
   <!-- STEP 1: Upload -->
@@ -291,8 +291,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- Tesseract OCR -->
 <script src="https://unpkg.com/tesseract.js@v2.1.5/dist/tesseract.min.js"></script>
-<!-- ResponsiveVoice — has real Gujarati, Hindi, English etc built in, no install needed -->
-<script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
 
 <script>
   // ── DOM refs ──
@@ -322,7 +320,7 @@
   const langName   = document.getElementById('langName');
 
   let extractedText = "";
-  let detectedVoice = 'UK English Female'; // ResponsiveVoice voice name
+  let detectedVoice = 'en-US'; // BCP-47 language code for Web Speech API
 
   // ── Sliders ──
   rateSlider.oninput  = () => rateVal.textContent  = parseFloat(rateSlider.value).toFixed(2) + '×';
@@ -332,14 +330,14 @@
   // ── Detect language from text using Unicode script ranges ──
   function detectLanguage(text) {
     const scripts = [
-      { name: 'Gujarati', voice: 'Gujarati Female',   re: /[\u0A80-\u0AFF]/g },
-      { name: 'Hindi',    voice: 'Hindi Female',      re: /[\u0900-\u097F]/g },
-      { name: 'Arabic',   voice: 'Arabic Female',     re: /[\u0600-\u06FF]/g },
-      { name: 'Russian',  voice: 'Russian Female',    re: /[\u0400-\u04FF]/g },
-      { name: 'Chinese',  voice: 'Chinese Female',    re: /[\u4E00-\u9FFF]/g },
-      { name: 'Japanese', voice: 'Japanese Female',   re: /[\u3040-\u30FF]/g },
-      { name: 'Korean',   voice: 'Korean Female',     re: /[\uAC00-\uD7AF]/g },
-      { name: 'English',  voice: 'UK English Female', re: /[A-Za-z]/g },
+      { name: 'Gujarati', lang: 'gu-IN', re: /[\u0A80-\u0AFF]/g },
+      { name: 'Hindi',    lang: 'hi-IN', re: /[\u0900-\u097F]/g },
+      { name: 'Arabic',   lang: 'ar-SA', re: /[\u0600-\u06FF]/g },
+      { name: 'Russian',  lang: 'ru-RU', re: /[\u0400-\u04FF]/g },
+      { name: 'Chinese',  lang: 'zh-CN', re: /[\u4E00-\u9FFF]/g },
+      { name: 'Japanese', lang: 'ja-JP', re: /[\u3040-\u30FF]/g },
+      { name: 'Korean',   lang: 'ko-KR', re: /[\uAC00-\uD7AF]/g },
+      { name: 'English',  lang: 'en-US', re: /[A-Za-z]/g },
     ];
     let best = scripts[scripts.length - 1];
     let bestCount = 0;
@@ -415,7 +413,7 @@
 
       // ── Auto-detect language ──
       const detected = detectLanguage(extractedText);
-      detectedVoice = detected.voice;
+      detectedVoice = detected.lang;
       langName.textContent = detected.name;
       langBadge.style.display = 'block';
 
@@ -556,26 +554,40 @@
     });
   };
 
-  // ── Read Aloud using ResponsiveVoice (has Gujarati, Hindi, etc built in) ──
+  // ── Read Aloud using Web Speech API ──
   readBtn.onclick = function() {
     if (!extractedText || extractedText.length < 5) return;
 
-    responsiveVoice.cancel();
+    window.speechSynthesis.cancel();
+
+    // Split into chunks of 200 chars — long text causes silence on mobile browsers
+    const chunks = extractedText.match(/.{1,200}(\s|$)/g) || [extractedText];
+    let i = 0;
+
+    function speakNext() {
+      if (i >= chunks.length) {
+        setStatus('✅ Finished reading!', 'success');
+        readBtn.disabled = false;
+        return;
+      }
+      const u = new SpeechSynthesisUtterance(chunks[i]);
+      u.lang   = detectedVoice;  // BCP-47 lang code
+      u.rate   = parseFloat(rateSlider.value);
+      u.pitch  = parseFloat(pitchSlider.value);
+      u.volume = 1;
+      u.onend  = () => { i++; speakNext(); };
+      u.onerror= () => { i++; speakNext(); }; // skip bad chunk, keep going
+      window.speechSynthesis.speak(u);
+    }
+
     setStatus(`🎤 Reading in <strong>${langName.textContent}</strong>… <span class="reading-pulse">●</span>`, 'success');
     readBtn.disabled = true;
-
-    responsiveVoice.speak(extractedText, detectedVoice, {
-      rate:   parseFloat(rateSlider.value),
-      pitch:  parseFloat(pitchSlider.value),
-      volume: 1,
-      onend:  () => { setStatus('✅ Finished reading!', 'success'); readBtn.disabled = false; },
-      onerror:() => { setStatus('❌ Could not read. Check your internet connection.', 'error'); readBtn.disabled = false; }
-    });
+    speakNext();
   };
 
   // ── Stop ──
   stopBtn.onclick = function() {
-    responsiveVoice.cancel();
+    window.speechSynthesis.cancel();
     setStatus('⏹ Stopped.', 'info');
     readBtn.disabled = !extractedText || extractedText.length < 5;
   };
